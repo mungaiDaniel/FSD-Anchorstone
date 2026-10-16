@@ -111,7 +111,7 @@ Propose a recommended default.
 - **PostgreSQL only.** No SQLite anywhere, including tests.
 - **Test databases:**
   - The test DB name must contain `test`, because it is wiped on every run.
-  - The demo seed refuses any DB name without `demo`.
+  - The demo seed refuses any DB name without `demo`. `--reset` also needs `--i-understand-this-deletes-data` and a DB name ending in `_demo` or `_test`; it rebuilds the schema with the migrations and forces `MAIL_SUPPRESS_SEND`.
 - **Uploaded documents** go through `app/Documents/service.py` only: AES-256-GCM with a per-file key wrapped by `DOCUMENT_KEK` (not `SECRET_KEY`), bytes in a `DocumentStore`, every read logged in `data_access_logs`. Never serve a store URL or the raw bytes, and never delete a document row: destroying one is a `document.destroy` change request (the key and blob go; the row stays).
 - `MAIL_SUPPRESS_SEND=true` means nothing is actually sent. Check it before pointing at real investor data.
 - **No public sign-up:**
@@ -176,7 +176,7 @@ venv/Scripts/python -m flask --app main create-superadmin          # first accou
 venv/Scripts/python -m flask --app main run --port 4455            # dev API on :4455
 venv/Scripts/python -m pytest                                      # all tests (wipes TEST_DATABASE_URI)
 venv/Scripts/python -m pytest tests/test_interest.py -k mark_paid  # a subset
-venv/Scripts/python scripts/seed_demo.py --reset                   # demo data (DB name must contain "demo")
+venv/Scripts/python scripts/seed_demo.py --reset --i-understand-this-deletes-data  # wipe + reseed demo (DB name ends in _demo)
 
 # Frontend — from frontend/
 npm ci

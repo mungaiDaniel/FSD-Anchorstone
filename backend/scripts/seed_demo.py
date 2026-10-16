@@ -2,7 +2,8 @@
 Load realistic demo data into a DEMO database (May–September 2026).
 
     venv\\Scripts\\python scripts\\seed_demo.py            # empty demo DB only
-    venv\\Scripts\\python scripts\\seed_demo.py --reset    # wipe the demo DB first
+    venv\\Scripts\\python scripts\\seed_demo.py --reset --i-understand-this-deletes-data
+                                                        # wipe the demo DB first
 
 Everything goes through the app's own services (deposits, maker-checker
 withdrawals, monthly interest), so every figure is produced exactly as in
@@ -14,15 +15,28 @@ real use. Afterwards:
     approval, so both can be demonstrated live and will really email.
 
 Investor emails are Gmail "+" aliases of DEMO_INBOX, so every email a client
-would receive lands in that one inbox. Refuses to run unless the database
-name contains "demo".
+would receive lands in that one inbox. Seeding refuses any database whose
+name doesn't contain "demo". MAIL_SUPPRESS_SEND is forced on while the script
+runs, whatever .env or the saved email settings say, so seeding never emails
+anyone.
+
+--reset wipes everything, so it also needs --i-understand-this-deletes-data
+and a database name ending in _demo or _test. It deletes the encrypted files
+of the demo's documents through the document store (so none are orphaned),
+then drops the public schema and rebuilds it with the real migrations. Every
+table, sequence and seeded reference row is back to its migrated state however
+the schema grows, so a new client gets ACL-000001 again. Nothing is DELETEd,
+so the triggers that keep posted records immutable are untouched.
 """
 import os
 import sys
+from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BACKEND_DIR)
+CONFIRM_FLAG = "--i-understand-this-deletes-data"
 
 DEMO_INBOX = os.environ.get("DEMO_INBOX", "danielmungai900@gmail.com")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "Anchorstone2026")
@@ -107,11 +121,62 @@ def at(day: date, hour: int = 10, minute: int = 0) -> datetime:
     return datetime.combine(day, time(hour, minute), EAT).astimezone(timezone.utc)
 
 
-def main(reset: bool) -> None:
+def check_reset_allowed(db_name: str, confirmed: bool) -> None:
+    if not (db_name.endswith("_demo") or db_name.endswith("_test")):
+        sys.exit(f"Refusing to reset '{db_name}': the database name must end in _demo or _test.")
+    if not confirmed:
+        sys.exit(f"Refusing to reset '{db_name}' without {CONFIRM_FLAG}: --reset deletes all its data.")
+
+
+@contextmanager
+def mail_suppressed(app):
+    """Nothing is sent while seeding, whatever .env or the saved email settings say."""
+    state = app.extensions.get("mail")
+    before = app.config.get("MAIL_SUPPRESS_SEND"), getattr(state, "suppress", None)
+    app.config["MAIL_SUPPRESS_SEND"] = True
+    if state is not None:
+        state.suppress = True
+    try:
+        yield
+    finally:
+        app.config["MAIL_SUPPRESS_SEND"] = before[0]
+        if state is not None:
+            state.suppress = before[1]
+
+
+def reset_database() -> int:
+    """Delete the demo's document files through the store, then drop the schema and rebuild it with
+    the migrations. Returns how many document files were deleted."""
+    from flask_migrate import upgrade
     from sqlalchemy import text
+
+    from app.database.database import db
+    from app.Documents.store import get_store
+
+    keys = []
+    if db.session.execute(text("SELECT to_regclass('public.documents')")).scalar():
+        keys = list(db.session.execute(text("SELECT storage_key FROM documents")).scalars())
+    store = get_store()
+    for key in keys:
+        store.delete(key)  # already-destroyed documents have no file; delete() allows that
+
+    db.session.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+    db.session.commit()
+    db.session.remove()
+    upgrade(directory=os.path.join(BACKEND_DIR, "migrations"))
+    return len(keys)
+
+
+def main(argv: list[str]) -> None:
+    os.environ["MAIL_SUPPRESS_SEND"] = "true"  # before the app reads its config
+    from main import app
+
+    seed(app, reset="--reset" in argv, confirmed=CONFIRM_FLAG in argv)
+
+
+def seed(app, reset: bool = False, confirmed: bool = False) -> None:
     from sqlalchemy.engine import make_url
 
-    from main import app
     from app.Admin.model import User
     from app.database.database import db
     from app.Emails.model import STATUS_QUEUED, STATUS_SENT, OutboxEmail
@@ -123,19 +188,18 @@ def main(reset: bool) -> None:
     from app.Transactions.model import Deposit, Withdrawal
     from app.utils.dates import month_bounds
 
-    with app.app_context():
+    with app.app_context(), mail_suppressed(app):
         db_name = make_url(app.config["SQLALCHEMY_DATABASE_URI"]).database or ""
-        if "demo" not in db_name:
-            sys.exit(f"Refusing to seed '{db_name}': the database name must contain 'demo'.")
-
+        print(f"Database: {db_name}")
         if reset:
-            db.session.execute(text(
-                'TRUNCATE "user", investors, deposits, withdrawals, interest_rates, interest_periods, '
-                "interest_payouts, email_outbox, audit_logs, account_holds RESTART IDENTITY CASCADE"))
-            db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
-            db.session.commit()
-        elif db.session.query(Investor.id).first() is not None:
-            sys.exit("The demo database already has investors. Re-run with --reset to start over.")
+            check_reset_allowed(db_name, confirmed)
+            files = reset_database()
+            print(f"Reset: schema rebuilt by the migrations; {files} document file(s) deleted.")
+        else:
+            if "demo" not in db_name:
+                sys.exit(f"Refusing to seed '{db_name}': the database name must contain 'demo'.")
+            if db.session.query(Investor.id).first() is not None:
+                sys.exit("The demo database already has investors. Re-run with --reset to start over.")
 
         # Staff
         for name, email, role in STAFF:
@@ -236,4 +300,4 @@ def main(reset: bool) -> None:
 
 
 if __name__ == "__main__":
-    main(reset="--reset" in sys.argv)
+    main(sys.argv[1:])
