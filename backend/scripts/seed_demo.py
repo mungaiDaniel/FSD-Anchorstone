@@ -131,7 +131,7 @@ def main(reset: bool) -> None:
         if reset:
             db.session.execute(text(
                 'TRUNCATE "user", investors, deposits, withdrawals, interest_rates, interest_periods, '
-                "interest_payouts, email_outbox, audit_logs RESTART IDENTITY CASCADE"))
+                "interest_payouts, email_outbox, audit_logs, account_holds RESTART IDENTITY CASCADE"))
             db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
             db.session.commit()
         elif db.session.query(Investor.id).first() is not None:
