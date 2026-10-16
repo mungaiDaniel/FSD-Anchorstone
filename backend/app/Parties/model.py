@@ -23,7 +23,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.Branches.model import HEAD_OFFICE_ID
 from app.database.database import db
@@ -473,3 +473,46 @@ class PartyPepDetails(Base, db.Model):
                 "related_pep_name": self.related_pep_name, "source_of_funds": self.source_of_funds,
                 "source_of_wealth": self.source_of_wealth, "status": self.status, "recorded_by": self.recorded_by,
                 "approved_at": iso(self.approved_at), "approved_by": self.approved_by}
+
+
+# ── Consent (Kenya DPA; FSD v0.1 AI-01, 05 §9.1) ──────────────────────────
+
+CONSENT_PURPOSES = ("kyc_processing", "ai_document_processing", "credit_bureau_check", "marketing")
+CONSENT_METHODS = ("signed_form", "in_branch", "email")
+
+
+class PartyConsent(Base, db.Model):
+    """A client's consent for one purpose: when, how, who captured it and the notice version shown.
+    Withdrawal is recorded on the row; consents are never deleted."""
+    __tablename__ = "party_consents"
+    __table_args__ = (
+        CheckConstraint(_in("purpose", CONSENT_PURPOSES), name="ck_party_consents_purpose"),
+        CheckConstraint(_in("method", CONSENT_METHODS), name="ck_party_consents_method"),
+        CheckConstraint("status IN ('active', 'withdrawn')", name="ck_party_consents_status"),
+        CheckConstraint("(status = 'withdrawn') = (withdrawn_at IS NOT NULL)", name="ck_party_consents_withdrawn"),
+        CheckConstraint("method <> 'signed_form' OR evidence_document_id IS NOT NULL",
+                        name="ck_party_consents_signed_form_evidence"),
+        Index("uq_party_consents_active", "party_id", "purpose", unique=True, postgresql_where=text("status = 'active'")),
+    )
+
+    id = Column(Integer, primary_key=True)
+    party_id = Column(Integer, ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False, index=True)
+    purpose = Column(String(30), nullable=False)
+    granted_on = Column(Date, nullable=False)
+    method = Column(String(12), nullable=False)
+    notice_version = Column(String(30), nullable=False)
+    evidence_document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="RESTRICT"), nullable=True)
+    captured_by = Column(String(120), nullable=False)
+    captured_at = Column(DateTime(timezone=True), nullable=False)
+    status = Column(String(10), nullable=False, default="active", server_default="active")
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    withdrawn_by = Column(String(120), nullable=True)
+    withdrawal_note = Column(Text, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "party_id": self.party_id, "purpose": self.purpose, "granted_on": iso(self.granted_on),
+                "method": self.method, "notice_version": self.notice_version,
+                "evidence_document_id": str(self.evidence_document_id) if self.evidence_document_id else None,
+                "captured_by": self.captured_by, "captured_at": iso(self.captured_at), "status": self.status,
+                "withdrawn_at": iso(self.withdrawn_at), "withdrawn_by": self.withdrawn_by,
+                "withdrawal_note": self.withdrawal_note}

@@ -45,7 +45,7 @@ def _import_models():
     from app.Jobs.model import Job, PeriodicTask  # noqa: F401
     from app.Parties.model import (  # noqa: F401
         Account, Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
-        PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, ScreeningResult, WatchlistEntry,
+        PartyConsent, PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, ScreeningResult, WatchlistEntry,
     )
     from app.Reports.model import ReportSchedule  # noqa: F401
     from app.Settings.model import EmailSettings, SettingVersion  # noqa: F401

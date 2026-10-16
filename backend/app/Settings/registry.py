@@ -9,6 +9,7 @@ app.Settings.business.get().
 
 Adding a key is a code change plus a migration that seeds its version 1.
 """
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
@@ -28,7 +29,7 @@ SOURCES = ("working_assumption", "client_confirmed", "internal_decision")
 @dataclass(frozen=True)
 class SettingDefinition:
     key: str
-    type: str                      # int / decimal / bool / enum / list / json
+    type: str                      # int / decimal / bool / enum / list / json / text
     default: Any                   # JSON-compatible (decimals as strings)
     validator: Callable[[Any], Any]
     binding: str
@@ -84,6 +85,16 @@ def one_of(*choices):
         if value not in choices:
             raise ValidationError(f"must be one of: {', '.join(choices)}.")
         return value
+    return check
+
+
+def label(max_len: int):
+    """A short identifier such as a notice version (letters, digits, dot, dash, underscore)."""
+    def check(value):
+        text = str(value or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", text) or len(text) > max_len:
+            raise ValidationError(f"must be a label of up to {max_len} letters, digits, dots or dashes.")
+        return text
     return check
 
 
@@ -174,6 +185,9 @@ DEFINITIONS = [
                       subset_of(*ORGANISATION_REQUIRED_FIELDS), IMMEDIATE, "compliance",
                       "Details an organisation must have before KYC can be verified.", in_use=True,
                       wa_ref="07 Q-C1", questionnaire_ref="C9"),
+    SettingDefinition("consent.notice_version", "text", "v1", label(30), IMMEDIATE, "compliance",
+                      "Version of the privacy notice shown to clients; stored with every consent recorded.",
+                      in_use=True, wa_ref="07 Q-CO1", questionnaire_ref="G3"),
     SettingDefinition("screening.lists_enabled", "list", ["internal_blacklist", "pep"],
                       subset_of(*WATCHLISTS), IMMEDIATE, "compliance",
                       "Watchlists every client is screened against at onboarding, on identity changes and daily. "

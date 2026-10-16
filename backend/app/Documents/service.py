@@ -33,7 +33,8 @@ class DocumentIntegrityError(ApiError):
 
 
 DOCUMENT_TYPES = ("national_id", "passport", "kra_pin", "cr12", "certificate_of_incorporation", "bank_statement",
-                  "mpesa_statement", "title_deed", "logbook", "valuation_report", "payslip", "photo", "other")
+                  "mpesa_statement", "audited_financial_statements", "title_deed", "logbook", "valuation_report",
+                  "payslip", "photo", "signature", "consent_form", "other")
 
 # First bytes of each accepted type: the declared content type must match the file.
 _MAGIC = {
