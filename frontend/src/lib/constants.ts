@@ -1,4 +1,4 @@
-import type { PaymentMethod, UserRole } from "./types";
+import type { PaymentMethod, SettingSource, UserRole } from "./types";
 
 export const APP_NAME = "Anchorstone Capital Ltd";
 
@@ -42,6 +42,7 @@ export const ROUTES = {
   AUDIT_LOG: "/audit-log",
   BACKUPS: "/backups",
   REPORTS: "/reports",
+  APPROVALS: "/approvals",
   SETTINGS: "/settings",
 } as const;
 
@@ -107,4 +108,34 @@ export const API = {
   SETTINGS_EMAIL: "/settings/email",
   SETTINGS_EMAIL_TEST: "/settings/email/test",
   SETTINGS_EMAIL_QUEUE: "/settings/email-queue",
+  SETTINGS_BUSINESS: "/settings/business",
+  SETTINGS_BUSINESS_KEY: (key: string) => `/settings/business/${encodeURIComponent(key)}`,
+
+  CHANGE_REQUESTS: "/change-requests",
+  CHANGE_REQUEST: (id: number) => `/change-requests/${id}`,
+  CHANGE_REQUEST_APPROVE: (id: number) => `/change-requests/${id}/approve`,
+  CHANGE_REQUEST_REJECT: (id: number) => `/change-requests/${id}/reject`,
+  CHANGE_REQUEST_RETURN: (id: number) => `/change-requests/${id}/return`,
+  CHANGE_REQUEST_RESUBMIT: (id: number) => `/change-requests/${id}/resubmit`,
+  CHANGE_REQUEST_CANCEL: (id: number) => `/change-requests/${id}/cancel`,
 } as const;
+
+// ── Approvals & business rules ──
+
+export const SETTING_SOURCE_LABELS: Record<SettingSource, string> = {
+  working_assumption: "Working assumption",
+  client_confirmed: "Confirmed by client",
+  internal_decision: "Internal decision",
+};
+
+/** Plain-English names for change-request types; unknown types show as sent. */
+export const REQUEST_TYPE_LABELS: Record<string, string> = {
+  "settings.change": "Business rule change",
+  "settings.change_security": "Security setting change",
+  "rbac.grant_role": "Grant role",
+  "rbac.revoke_role": "Revoke role",
+  "rbac.set_limit": "Approval limit",
+  "rbac.set_branch_scope": "Branch access",
+  "rbac.set_role_active": "Role on/off",
+  "document.destroy": "Destroy document",
+};

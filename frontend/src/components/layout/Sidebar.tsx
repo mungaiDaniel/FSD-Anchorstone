@@ -11,6 +11,7 @@ import {
   ArrowUpFromLine,
   Percent,
   Mail,
+  ClipboardCheck,
   Users,
   ShieldCheck,
   DatabaseBackup,
@@ -34,6 +35,7 @@ const mainNav: NavItem[] = [
   { label: "Withdrawals", path: ROUTES.WITHDRAWALS, icon: <ArrowUpFromLine size={17} /> },
   { label: "Interest", path: ROUTES.INTEREST, icon: <Percent size={17} /> },
   { label: "Emails", path: ROUTES.EMAILS, icon: <Mail size={17} /> },
+  { label: "Approvals", path: ROUTES.APPROVALS, icon: <ClipboardCheck size={17} /> },
 ];
 
 // Administration: Reports for all staff, Audit Log for admins, the rest super admin only.

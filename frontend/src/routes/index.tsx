@@ -21,6 +21,7 @@ const UserManagementPage = lazy(() => import("@/pages/users/UserManagementPage")
 const AuditLogPage = lazy(() => import("@/pages/audit/AuditLogPage"));
 const BackupsPage = lazy(() => import("@/pages/backups/BackupsPage"));
 const ReportsPage = lazy(() => import("@/pages/reports/ReportsPage"));
+const ApprovalsPage = lazy(() => import("@/pages/approvals/ApprovalsPage"));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 
 function PageLoader() {
@@ -63,6 +64,7 @@ const routes: RouteObject[] = [
       { path: ROUTES.INTEREST, element: withSuspense(InterestPage) },
       { path: "/interest/periods/:id", element: withSuspense(InterestPeriodPage) },
       { path: ROUTES.EMAILS, element: withSuspense(EmailsPage) },
+      { path: ROUTES.APPROVALS, element: withSuspense(ApprovalsPage) },
       { path: ROUTES.SETTINGS, element: withSuspense(SettingsPage) },
       { path: ROUTES.REPORTS, element: withSuspense(ReportsPage) },
     ],

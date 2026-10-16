@@ -5,6 +5,10 @@ import type {
   AuditLogEntry,
   BackupLogEntry,
   BackupStatus,
+  BusinessSetting,
+  BusinessSettingProposal,
+  ChangeRequest,
+  ChangeRequestStatus,
   Deposit,
   EmailQueueSettingsData,
   EmailQueueStatus,
@@ -227,4 +231,32 @@ export const settingsService = {
   getEmailQueueSettings: () => get<EmailQueueSettingsData>(API.SETTINGS_EMAIL_QUEUE),
   updateEmailQueueSettings: (batchSize: number, intervalMinutes: number) =>
     send("patch", API.SETTINGS_EMAIL_QUEUE, { batch_size: batchSize, interval_minutes: intervalMinutes }),
+  // Business rules: reading is direct; a change is a change request decided in the Approvals inbox.
+  getBusinessSettings: (source?: string) => get<BusinessSetting[]>(API.SETTINGS_BUSINESS, source ? { source } : undefined),
+  proposeBusinessSetting: (key: string, data: BusinessSettingProposal) =>
+    send<ChangeRequest>("post", API.SETTINGS_BUSINESS_KEY(key), data),
+};
+
+// ── Approvals (change requests) ──
+
+export interface ChangeRequestListParams {
+  page?: number;
+  per_page?: number;
+  /** Requests I made (any status). */
+  mine?: boolean;
+  /** Every request in this status. Without mine/status: what I may decide now. */
+  status?: ChangeRequestStatus;
+}
+
+export const approvalService = {
+  list: ({ mine, ...params }: ChangeRequestListParams) =>
+    get<Paginated<ChangeRequest>>(API.CHANGE_REQUESTS, { ...params, ...(mine ? { mine: 1 } : {}) }),
+  get: (id: number) => get<ChangeRequest>(API.CHANGE_REQUEST(id)),
+  approve: (id: number, comment?: string) => send<ChangeRequest>("post", API.CHANGE_REQUEST_APPROVE(id), { comment }),
+  reject: (id: number, reason: string) => send<ChangeRequest>("post", API.CHANGE_REQUEST_REJECT(id), { reason }),
+  returnForCorrection: (id: number, reason: string) =>
+    send<ChangeRequest>("post", API.CHANGE_REQUEST_RETURN(id), { reason }),
+  resubmit: (id: number, payload: Record<string, unknown>, reason?: string) =>
+    send<ChangeRequest>("post", API.CHANGE_REQUEST_RESUBMIT(id), { payload, reason }),
+  cancel: (id: number) => send<ChangeRequest>("post", API.CHANGE_REQUEST_CANCEL(id)),
 };

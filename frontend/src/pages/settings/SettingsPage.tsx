@@ -6,6 +6,7 @@ import { Card, Field, PageHeader } from "@/components/ui/Page";
 import { PasswordRules, passwordChecks } from "@/components/forms/PasswordRules";
 import EmailSettingsSection from "@/components/settings/EmailSettingsSection";
 import ScheduledReportsSection from "@/components/settings/ScheduledReportsSection";
+import BusinessRulesSection from "@/components/settings/BusinessRulesSection";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services";
 import { ROLE_LABELS, ROUTES } from "@/lib/constants";
@@ -45,7 +46,7 @@ export default function SettingsPage() {
 
   return (
     <div className="app-page">
-      <PageHeader title="Settings" subtitle="Your account and, for super admins, system email settings." />
+      <PageHeader title="Settings" subtitle="Your account; for admins, the business rules; for super admins, system email settings." />
       <div className="row g-3">
         <div className="col-lg-5">
           <Card title="Your account" className="mb-3">
@@ -104,6 +105,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+      {/* Cosmetic: the API checks settings.business.view / .edit on every call. */}
+      {isAdmin && <div className="tw:mt-3"><BusinessRulesSection /></div>}
     </div>
   );
 }

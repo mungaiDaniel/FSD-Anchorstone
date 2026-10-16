@@ -370,3 +370,105 @@ export interface EmailQueueSettingsData {
   interval_minutes: number;
   next_run_at: string | null;
 }
+
+// ── Approvals (change requests, app/Approvals) ──
+
+export type ChangeRequestStatus = "pending" | "returned" | "applied" | "rejected" | "cancelled" | "expired" | "failed";
+export type ChangeRequestAction =
+  | "submit" | "approve" | "reject" | "return" | "resubmit" | "cancel" | "apply" | "expire" | "fail";
+
+export interface ApprovalLevel {
+  permission: string;
+  count?: number;
+}
+
+export interface ChangeRequestEvent {
+  id: number;
+  round: number;
+  action: ChangeRequestAction;
+  level: number | null;
+  actor_email: string;
+  comment: string | null;
+  at: string;
+}
+
+export interface ChangeRequest {
+  id: number;
+  request_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: Record<string, unknown>;
+  summary: string | null;
+  amount: string | null;
+  currency: "KES";
+  branch_id: number | null;
+  status: ChangeRequestStatus;
+  reason: string | null;
+  maker_email: string;
+  submitted_at: string;
+  expires_at: string;
+  decided_at: string | null;
+  applied_at: string | null;
+  levels_required: number;
+  levels_done: number;
+  round: number;
+  levels: ApprovalLevel[] | null;
+  result: unknown;
+  error: string | null;
+  /** Whether the server would let me decide it now. Cosmetic: the server re-checks. */
+  can_decide?: boolean;
+  events?: ChangeRequestEvent[];
+}
+
+// ── Business-rule settings (app/Settings/registry.py, business.overview) ──
+
+export type SettingSource = "working_assumption" | "client_confirmed" | "internal_decision";
+export type SettingType = "int" | "decimal" | "bool" | "enum" | "list" | "json";
+
+/** A setting value as JSON: decimals arrive as strings. */
+export type SettingValue = string | number | boolean | null | SettingValue[] | { [k: string]: SettingValue };
+
+export interface SettingVersion {
+  id: number;
+  key: string;
+  scope_type: "global" | "branch" | "product";
+  scope_id: number | null;
+  value: SettingValue;
+  effective_from: string;
+  version_no: number;
+  source: SettingSource;
+  evidence: string | null;
+  reason: string | null;
+  change_request_id: number | null;
+  created_by: string;
+  approved_by: string;
+  approved_at: string | null;
+}
+
+export interface BusinessSetting {
+  key: string;
+  category: string;
+  type: SettingType;
+  description: string;
+  binding: "immediate" | "event_date" | "at_booking" | "new_versions_only";
+  scopes: string[];
+  approvals_required: number;
+  in_use: boolean;
+  wa_ref: string | null;
+  questionnaire_ref: string | null;
+  choices: string[];
+  default: SettingValue;
+  value: SettingValue;
+  /** null only before the key is seeded (the registry default is shown). */
+  source: SettingSource | null;
+  effective_from: string | null;
+  history: SettingVersion[];
+}
+
+export interface BusinessSettingProposal {
+  value: SettingValue;
+  effective_from: string;
+  source: SettingSource;
+  evidence?: string;
+  reason: string;
+}
