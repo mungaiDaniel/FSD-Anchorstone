@@ -65,8 +65,8 @@ def retry(email_id):
     email.status = STATUS_QUEUED
     email.attempts = 0
     email.queued_at = utcnow()
-    db.session.commit()
     create_audit_log("RETRY_EMAIL", target_type="email", target_id=email.id, target_name=email.recipient_email)
+    db.session.commit()
     return ok(email.to_dict(), "Email re-queued.")
 
 
@@ -77,8 +77,8 @@ def cancel(email_id):
     if email.status != STATUS_QUEUED:
         raise Conflict("Only queued emails can be cancelled.")
     email.status = STATUS_CANCELLED
-    db.session.commit()
     create_audit_log("CANCEL_EMAIL", target_type="email", target_id=email.id, target_name=email.recipient_email)
+    db.session.commit()
     return ok(email.to_dict(), "Email cancelled.")
 
 

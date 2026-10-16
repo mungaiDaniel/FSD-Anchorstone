@@ -79,9 +79,10 @@ def create_investor(data: dict, actor: str) -> Investor:
     number = db.session.execute(client_code_seq.next_value()).scalar()
     investor = Investor(client_code=f"ACL-{number:06d}", created_by=actor, status="active", **values)
     db.session.add(investor)
-    db.session.commit()
+    db.session.flush()
     create_audit_log("CREATE_INVESTOR", target_type="investor", target_id=investor.id,
                      target_name=investor.client_code, new_value=investor.to_dict())
+    db.session.commit()
     return investor
 
 
@@ -94,9 +95,9 @@ def update_investor(investor_id: int, data: dict, actor: str) -> Investor:
     old = {k: getattr(investor, k) for k in values}
     for key, value in values.items():
         setattr(investor, key, value)
-    db.session.commit()
     create_audit_log("UPDATE_INVESTOR", target_type="investor", target_id=investor.id,
                      target_name=investor.client_code, old_value=old, new_value=values)
+    db.session.commit()
     return investor
 
 
@@ -125,9 +126,9 @@ def set_investor_status(investor_id: int, data: dict, actor: str) -> Investor:
 
     old = investor.status
     investor.status = status
-    db.session.commit()
     create_audit_log("SET_INVESTOR_STATUS", target_type="investor", target_id=investor.id,
                      target_name=investor.client_code, old_value={"status": old}, new_value={"status": status})
+    db.session.commit()
     return investor
 
 

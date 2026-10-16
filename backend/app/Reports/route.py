@@ -37,6 +37,7 @@ def export_report(name):
         description=f"{title}: {report.description} ({report.rows} rows)",
         new_value=dict(request.args),
     )
+    db.session.commit()
     response = make_response(report.data)
     response.headers["Content-Type"] = XLSX_MIME
     response.headers["Content-Disposition"] = f'attachment; filename="{report.filename}"'

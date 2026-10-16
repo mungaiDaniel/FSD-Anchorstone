@@ -9,7 +9,6 @@ from app.database.database import db
 from app.Emails.sender import build_message, mail
 from app.logic.scheduler import EMAIL_JOB_ID, next_run
 from app.Settings.service import get_effective_email_settings, save_email_queue_settings, save_email_settings
-from app.utils.audit_log import create_audit_log
 from app.utils.http import ValidationError, ok
 
 settings_v1 = Blueprint("settings_v1", __name__)
@@ -33,8 +32,6 @@ def patch_email_settings():
         if not 1 <= port <= 65535:
             raise ValidationError("mail_port must be between 1 and 65535.")
     save_email_settings(current_app, db.session, data, updated_by=actor_email())
-    create_audit_log("UPDATE_EMAIL_SETTINGS", target_type="settings",
-                     new_value={k: v for k, v in data.items() if k != "mail_password"})
     return ok(get_effective_email_settings(current_app, db.session), "Email settings saved and applied.")
 
 
@@ -83,6 +80,4 @@ def patch_queue_settings():
     if not 1 <= interval <= 1440:
         raise ValidationError("interval_minutes must be between 1 and 1440.")
     save_email_queue_settings(current_app, db.session, batch_size, interval, updated_by=actor_email())
-    create_audit_log("UPDATE_EMAIL_QUEUE", target_type="settings",
-                     new_value={"batch_size": batch_size, "interval_minutes": interval})
     return ok(message=f"Email queue updated: up to {batch_size} emails every {interval} minute(s).")

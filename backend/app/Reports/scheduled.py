@@ -52,9 +52,9 @@ def save_schedule(data: dict, actor: str) -> ReportSchedule:
     if row.aum_enabled and not row.recipients:
         raise ValidationError("Add at least one recipient before turning the schedule on.")
     row.updated_by = actor
-    db.session.commit()
     create_audit_log("UPDATE_REPORT_SCHEDULE", target_type="report_schedule", target_name="Monthly AUM summary",
                      old_value=old, new_value=row.to_dict())
+    db.session.commit()
     return row
 
 
@@ -118,9 +118,9 @@ def run_now(actor: str) -> list[OutboxEmail]:
         raise ValidationError("Add at least one recipient first.")
     month = _last_completed_month(today_eat())
     emails = generate_aum_emails(row.recipients, month, actor)
-    db.session.commit()
     create_audit_log("GENERATE_AUM_REPORT", target_type="report_schedule", target_name=f"{month:%B %Y}",
                      description=f"Generated on request for {len(emails)} recipient(s), awaiting confirmation")
+    db.session.commit()
     return emails
 
 
@@ -135,8 +135,8 @@ def scheduled_run(today: date | None = None) -> int:
     emails = generate_aum_emails(row.recipients, month, "scheduler")
     row.aum_last_month = f"{month:%Y-%m}"
     row.aum_last_run_at = utcnow()
-    db.session.commit()
     create_audit_log("GENERATE_AUM_REPORT", target_type="report_schedule", target_name=f"{month:%B %Y}",
                      description=f"Scheduled run for {len(emails)} recipient(s), awaiting confirmation",
                      actor_user_email="scheduler", actor_user_name="Scheduler")
+    db.session.commit()
     return len(emails)

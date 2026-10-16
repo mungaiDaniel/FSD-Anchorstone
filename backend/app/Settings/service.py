@@ -12,6 +12,7 @@ it updates app.config AND re-runs mail.init_app(app) in the same step.
 import logging
 
 from app.Settings.model import EmailSettings
+from app.utils.audit_log import create_audit_log
 from app.utils.crypto import decrypt_secret, encrypt_secret
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,8 @@ def save_email_settings(app, session, data: dict, updated_by: str = None) -> Ema
 
     row.updated_by = updated_by
     session.add(row)
+    create_audit_log("UPDATE_EMAIL_SETTINGS", target_type="settings",
+                     new_value={k: v for k, v in data.items() if k != "mail_password"})
     session.commit()
 
     apply_email_settings_to_app(app, session)
@@ -132,6 +135,8 @@ def save_email_queue_settings(app, session, batch_size: int, interval_minutes: i
     row.email_queue_interval_minutes = interval_minutes
     row.updated_by = updated_by
     session.add(row)
+    create_audit_log("UPDATE_EMAIL_QUEUE", target_type="settings",
+                     new_value={"batch_size": batch_size, "interval_minutes": interval_minutes})
     session.commit()
 
     from app.logic.scheduler import reschedule_email_queue

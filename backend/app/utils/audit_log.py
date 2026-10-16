@@ -1,12 +1,18 @@
 """
 Insert-only audit trail for compliance.
 
-Usage (after the business change has been committed):
+Usage: make the business change, write the audit entry, then commit both
+together:
+
+    withdrawal.status = WITHDRAWAL_APPROVED
     create_audit_log("APPROVE_WITHDRAWAL", target_type="withdrawal", target_id=w.id,
                      target_name=investor.client_code, new_value={...})
+    db.session.commit()
 
-create_audit_log commits its own row, so call it after the main transaction
-commits — never in the middle of one.
+The entry is added to the caller's transaction and flushed, never committed
+here. If it can't be written, the error propagates and the request's error
+handler rolls back the whole action: no change happens without its audit
+entry. Flush the session first if target_id is the id of a new row.
 """
 
 from datetime import datetime, timezone
@@ -194,13 +200,8 @@ def create_audit_log(
         error_message=error_message,
     )
     
-    try:
-        db.session.add(log)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"Failed to create audit log: {str(e)}")
-    
+    db.session.add(log)
+    db.session.flush()  # surface a failed write now, inside the caller's transaction
     return log
 
 

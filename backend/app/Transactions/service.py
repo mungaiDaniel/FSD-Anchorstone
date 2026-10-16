@@ -101,13 +101,13 @@ def record_deposit(data: dict, actor: str) -> Deposit:
     db.session.add(deposit)
     db.session.flush()
     queue_deposit_confirmation(deposit, actor)
-    db.session.commit()
 
     create_audit_log(
         "RECORD_DEPOSIT", target_type="deposit", target_id=deposit.id, target_name=investor.client_code,
         description=f"{fmt_kes(amount)} on {value_date.isoformat()} ({reference})",
         new_value=deposit.to_dict(),
     )
+    db.session.commit()
     return deposit
 
 
@@ -141,13 +141,13 @@ def reverse_deposit(deposit_id: int, data: dict, actor: str) -> Deposit:
     db.session.query(OutboxEmail).filter(
         OutboxEmail.deposit_id == deposit.id, OutboxEmail.status == STATUS_QUEUED
     ).update({"status": STATUS_CANCELLED, "last_error": "Deposit reversed before sending."})
-    db.session.commit()
 
     create_audit_log(
         "REVERSE_DEPOSIT", target_type="deposit", target_id=deposit.id,
         target_name=deposit.investor.client_code, description=reason,
         old_value={"status": DEPOSIT_POSTED}, new_value={"status": DEPOSIT_REVERSED, "reason": reason},
     )
+    db.session.commit()
     return deposit
 
 
@@ -186,13 +186,13 @@ def request_withdrawal(data: dict, actor: str) -> Withdrawal:
         requested_by=actor,
     )
     db.session.add(withdrawal)
-    db.session.commit()
-
+    db.session.flush()
     create_audit_log(
         "REQUEST_WITHDRAWAL", target_type="withdrawal", target_id=withdrawal.id,
         target_name=investor.client_code, description=f"{fmt_kes(amount)} requested",
         new_value=withdrawal.to_dict(),
     )
+    db.session.commit()
     return withdrawal
 
 
@@ -233,7 +233,6 @@ def approve_withdrawal(withdrawal_id: int, data: dict, actor: str) -> Withdrawal
     withdrawal.decided_at = utcnow()
     db.session.flush()
     queue_withdrawal_confirmation(withdrawal, actor)
-    db.session.commit()
 
     create_audit_log(
         "APPROVE_WITHDRAWAL", target_type="withdrawal", target_id=withdrawal.id,
@@ -243,6 +242,7 @@ def approve_withdrawal(withdrawal_id: int, data: dict, actor: str) -> Withdrawal
         new_value={"status": WITHDRAWAL_APPROVED, "value_date": value_date.isoformat(),
                    "amount": as_str(withdrawal.amount)},
     )
+    db.session.commit()
     return withdrawal
 
 
@@ -256,11 +256,11 @@ def reject_withdrawal(withdrawal_id: int, data: dict, actor: str) -> Withdrawal:
     withdrawal.rejection_reason = reason
     withdrawal.decided_by = actor
     withdrawal.decided_at = utcnow()
-    db.session.commit()
 
     create_audit_log(
         "REJECT_WITHDRAWAL", target_type="withdrawal", target_id=withdrawal.id,
         target_name=withdrawal.investor.client_code, description=reason,
         old_value={"status": WITHDRAWAL_PENDING}, new_value={"status": WITHDRAWAL_REJECTED},
     )
+    db.session.commit()
     return withdrawal

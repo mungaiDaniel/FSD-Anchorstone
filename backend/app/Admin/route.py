@@ -119,9 +119,9 @@ def change_own_password():
     user.password = User.generate_password_hash(new_password)
     user.must_change_password = False
     user.password_changed_at = utcnow()
-    db.session.commit()
     create_audit_log("CHANGE_OWN_PASSWORD", target_type="user", target_id=user.id, target_name=user.email,
                      description="Replaced temporary password" if was_temporary else None)
+    db.session.commit()
     return ok(user.to_dict(), "Password changed.")
 
 
@@ -159,9 +159,10 @@ def create_user():
     user = User(name=name, email=email, password=User.generate_password_hash(temporary_password),
                 role=role, status="active", must_change_password=True)
     db.session.add(user)
-    db.session.commit()
+    db.session.flush()
     create_audit_log("CREATE_USER", target_type="user", target_id=user.id, target_name=email,
                      new_value={"name": name, "role": role})
+    db.session.commit()
     # The temporary password is returned exactly once and never stored in plain text.
     return ok({"user": user.to_dict(), "temporary_password": temporary_password},
               f"Account created for {email}.", 201)
@@ -183,9 +184,9 @@ def set_user_status(user_id):
     _guard_self(user, "change the status of")
     old = user.status
     user.status = status
-    db.session.commit()
     create_audit_log("SET_USER_STATUS", target_type="user", target_id=user.id, target_name=user.email,
                      old_value={"status": old}, new_value={"status": status})
+    db.session.commit()
     return ok(user.to_dict(), "Account enabled." if status == "active" else "Account disabled.")
 
 
@@ -199,9 +200,9 @@ def set_user_role(user_id):
     _guard_self(user, "change the role of")
     old = user.role
     user.role = role
-    db.session.commit()
     create_audit_log("SET_USER_ROLE", target_type="user", target_id=user.id, target_name=user.email,
                      old_value={"role": old}, new_value={"role": role})
+    db.session.commit()
     return ok(user.to_dict(), "Role updated.")
 
 
@@ -213,8 +214,8 @@ def reset_password(user_id):
     temporary_password = generate_temporary_password()
     user.password = User.generate_password_hash(temporary_password)
     user.must_change_password = True
-    db.session.commit()
     create_audit_log("RESET_PASSWORD", target_type="user", target_id=user.id, target_name=user.email)
+    db.session.commit()
     return ok({"user": user.to_dict(), "temporary_password": temporary_password},
               f"Password reset for {user.email}.")
 
@@ -235,6 +236,6 @@ def delete_user(user_id):
     _guard_self(user, "delete")
     email = user.email
     db.session.delete(user)
-    db.session.commit()
     create_audit_log("DELETE_USER", target_type="user", target_id=user_id, target_name=email)
+    db.session.commit()
     return ok(message="User deleted.")

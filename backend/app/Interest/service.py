@@ -116,11 +116,12 @@ def set_rate(data: dict, actor: str) -> InterestRate:
 
     row = InterestRate(rate_percent=rate, effective_from=effective_from, note=note, set_by=actor)
     db.session.add(row)
-    db.session.commit()
+    db.session.flush()
     create_audit_log(
         "SET_INTEREST_RATE", target_type="interest_rate", target_id=row.id,
         description=f"{rate}% p.a. from {effective_from.isoformat()}", new_value=row.to_dict(),
     )
+    db.session.commit()
     return row
 
 
@@ -267,13 +268,13 @@ def calculate_period(data: dict, actor: str) -> InterestPeriod:
     period.total_gross = total_gross
     period.total_tax = total_tax
     period.total_net = total_gross - total_tax
-    db.session.commit()
 
     create_audit_log(
         "RECALCULATE_INTEREST" if recalculated else "CALCULATE_INTEREST",
         target_type="interest_period", target_id=period.id, target_name=period.label,
         description=f"{len(calcs)} investors, gross {fmt_kes(total_gross)}",
     )
+    db.session.commit()
     return period
 
 
@@ -290,8 +291,8 @@ def discard_draft(period_id: int, actor: str) -> None:
         raise Conflict("Only a draft can be discarded.")
     label = period.label
     db.session.delete(period)
-    db.session.commit()
     create_audit_log("DISCARD_INTEREST_DRAFT", target_type="interest_period", target_id=period_id, target_name=label)
+    db.session.commit()
 
 
 def approve_period(period_id: int, actor: str) -> InterestPeriod:
@@ -322,12 +323,12 @@ def approve_period(period_id: int, actor: str) -> InterestPeriod:
         # Nothing to pay — the month is approved and immediately settled.
         period.status = PERIOD_PAID
         period.paid_at = utcnow()
-    db.session.commit()
 
     create_audit_log(
         "APPROVE_INTEREST", target_type="interest_period", target_id=period.id, target_name=period.label,
         description=f"{len(payouts)} statements queued, net {fmt_kes(period.total_net)}",
     )
+    db.session.commit()
     return period
 
 
@@ -373,12 +374,12 @@ def mark_payouts_paid(period_id: int, data: dict, actor: str) -> InterestPeriod:
     if remaining == 0:
         period.status = PERIOD_PAID
         period.paid_at = now
-    db.session.commit()
 
     create_audit_log(
         "MARK_INTEREST_PAID", target_type="interest_period", target_id=period.id, target_name=period.label,
         description=f"{len(marked)} payouts marked paid; {remaining} outstanding", new_value=marked,
     )
+    db.session.commit()
     return period
 
 

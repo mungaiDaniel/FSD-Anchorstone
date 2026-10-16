@@ -99,12 +99,13 @@ def generate_for_investor(investor_id: int, actor: str) -> OutboxEmail:
             "Confirm or suppress it first."
         )
     email = _create(investor, actor, None)
-    db.session.commit()
+    db.session.flush()
     create_audit_log(
         "GENERATE_STATEMENT_EMAIL", target_type="investor", target_id=investor.id,
         target_name=investor.client_code, description="Statement as of today, awaiting confirmation",
         new_value={"email_id": email.id},
     )
+    db.session.commit()
     return email
 
 
@@ -166,7 +167,6 @@ def generate_bulk(data: dict, actor: str) -> dict:
             continue
         _create(inv, actor, send_key)
         generated += 1
-    db.session.commit()
 
     create_audit_log(
         "BULK_GENERATE_STATEMENTS", target_type="statement_batch", target_name=send_key,
@@ -176,6 +176,7 @@ def generate_bulk(data: dict, actor: str) -> dict:
                    "selection": (data.get("recipients") or {}).get("filter") or "selected investors",
                    "send_key": send_key},
     )
+    db.session.commit()
     return {"generated": generated, "skipped_pending": skipped, "selected": len(investors), "duplicate": False}
 
 
@@ -219,7 +220,6 @@ def decide(ids: list[int], confirm: bool, actor: str) -> dict:
             e.queued_at = now
         else:
             e.last_error = "Suppressed by an admin; not sent."
-    db.session.commit()
 
     action = "CONFIRM_EMAIL" if confirm else "SUPPRESS_EMAIL"
     for e in changed:
@@ -228,6 +228,7 @@ def decide(ids: list[int], confirm: bool, actor: str) -> dict:
             target_name=e.investor.client_code if e.investor else e.recipient_email,
             description=f"{e.subject} (to {e.recipient_email})", new_value={"email_id": e.id},
         )
+    db.session.commit()
     return {"changed": len(changed), "skipped": len(emails) - len(changed),
             "emails": [e.to_dict() for e in changed]}
 
