@@ -98,6 +98,13 @@ def label(max_len: int):
     return check
 
 
+def https_url(value):
+    text = str(value or "").strip()
+    if not re.fullmatch(r"https://[A-Za-z0-9.-]+(:\d+)?(/[^\s]*)?", text) or len(text) > 500:
+        raise ValidationError("must be an https:// address of up to 500 characters.")
+    return text
+
+
 def int_list(lo: int, hi: int):
     def check(value):
         if not isinstance(value, list) or not value:
@@ -120,6 +127,7 @@ MIME_TYPES = ("application/pdf", "image/jpeg", "image/png", "image/heic", "image
 PERSON_REQUIRED_FIELDS = ("name", "id_document", "kra_pin", "date_of_birth", "mobile", "physical_address",
                           "next_of_kin")
 WATCHLISTS = ("internal_blacklist", "pep", "sanctions_un")  # app/Parties/model.py WATCHLISTS
+UN_SANCTIONS_URL = "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
 ORGANISATION_REQUIRED_FIELDS = ("legal_name", "registration_no", "kra_pin", "registration_date",
                                 "director_with_id", "phone", "physical_address")
 
@@ -192,7 +200,15 @@ DEFINITIONS = [
     SettingDefinition("screening.lists_enabled", "list", ["internal_blacklist", "pep"],
                       subset_of(*WATCHLISTS), IMMEDIATE, "compliance",
                       "Watchlists every client is screened against at onboarding, on identity changes and daily. "
-                      "The UN sanctions list is added once its import is built.", in_use=True,
+                      "Add sanctions_un once the UN list import is on and compliance has confirmed it.", in_use=True,
+                      wa_ref="07 Q-CO6 / FSD KYC-06", questionnaire_ref="G6"),
+    SettingDefinition("screening.un_sanctions.import_enabled", "bool", False, boolean, IMMEDIATE, "compliance",
+                      "Download the UN Security Council consolidated sanctions list daily into the sanctions_un "
+                      "watchlist. Off until compliance confirms the source and refresh.", in_use=True,
+                      wa_ref="07 Q-CO6 / FSD KYC-06", questionnaire_ref="G6"),
+    SettingDefinition("screening.un_sanctions.source_url", "text", UN_SANCTIONS_URL, https_url, IMMEDIATE,
+                      "compliance", "Where the UN consolidated list XML is downloaded from. Two approvers: a wrong "
+                      "source could delist sanctioned names.", approvals_required=2, in_use=True,
                       wa_ref="07 Q-CO6 / FSD KYC-06", questionnaire_ref="G6"),
     SettingDefinition("retention.documents_years_after_end", "int", 7, int_between(1, 30), EVENT_DATE, "compliance",
                       "Years documents are kept after the relationship ends (including declined applicants).",

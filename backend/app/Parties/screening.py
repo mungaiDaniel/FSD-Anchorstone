@@ -8,7 +8,8 @@ Screening parties against Anchorstone's watchlists (FSD v0.1 KYC-06).
 
 A party matches an active entry on an enabled list (setting
 screening.lists_enabled) when an identifier is the same after normalising, or
-the normalised names are equal. A potential match blocks KYC verification until
+the normalised names are equal (an entry's aliases count as its names). The UN
+sanctions list is loaded by app/Parties/sanctions_un.py. A potential match blocks KYC verification until
 it's reviewed. The reviewer can't be the person who onboarded the party: the
 service checks it (assert_can_decide) and a CHECK constraint backs it up.
 A confirmed blacklist match makes the party `blacklisted`; a confirmed PEP-list
@@ -53,13 +54,18 @@ def matches_for(party: Party, entries=None) -> list[dict]:
     idents = {(i.id_type, i.value_normalised) for i in PartyIdentifier.query.filter_by(party_id=party.id)}
     out = []
     for e in entries:
-        on = []
+        on, label = [], e.full_name
         if e.name_normalised in names:
             on.append("name")
+        else:
+            alias = next((a for a in (e.aliases or []) if a.get("name_normalised") in names), None)
+            if alias is not None:
+                on.append("name")
+                label = f"{e.full_name} (alias {alias.get('name')})"
         if any((i.get("id_type"), i.get("value_normalised")) in idents for i in (e.identifiers or [])):
             on.append("identifier")
         if on:
-            out.append({"entry_id": e.id, "list": e.list, "name": e.full_name, "matched_on": on})
+            out.append({"entry_id": e.id, "list": e.list, "name": label, "matched_on": on})
     return sorted(out, key=lambda m: m["entry_id"])
 
 
