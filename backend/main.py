@@ -61,8 +61,8 @@ def create_app(config_name: str | None = None) -> Flask:
     app.config.from_object(config)
     _check_secrets(app, env_name)
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=app.config["JWT_ACCESS_TOKEN_HOURS"])
-    app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]  # query string for PDF links opened in a new tab
-    app.config["JWT_QUERY_STRING_NAME"] = "token"
+    # Header only: a token in the URL would end up in server and proxy logs.
+    app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     JWTManager(app)

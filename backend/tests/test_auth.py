@@ -7,6 +7,13 @@ def test_unauthenticated_requests_are_rejected(client):
         assert client.get(url).status_code == 401, url
 
 
+def test_token_in_url_is_not_accepted(client, staff):
+    """Tokens only travel in the Authorization header; a ?token= URL would leak into logs."""
+    token = staff.headers["Authorization"].split(" ", 1)[1]
+    assert client.get(f"/api/v1/investors?token={token}").status_code == 401
+    assert staff.get("/api/v1/investors").status_code == 200
+
+
 def test_login_does_not_reveal_whether_email_exists(client, users):
     unknown = client.post("/api/v1/login", json={"email": "nobody@x.test", "password": "password123"})
     wrong = client.post("/api/v1/login", json={"email": users["staff"].email, "password": "wrong-password"})

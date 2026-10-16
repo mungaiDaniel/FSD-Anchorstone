@@ -35,7 +35,7 @@ def export_report(name):
     create_audit_log(
         "EXPORT_REPORT", target_type="report", target_name=name,
         description=f"{title}: {report.description} ({report.rows} rows)",
-        new_value={k: v for k, v in request.args.items() if k != "token"},
+        new_value=dict(request.args),
     )
     response = make_response(report.data)
     response.headers["Content-Type"] = XLSX_MIME
