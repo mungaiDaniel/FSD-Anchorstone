@@ -31,12 +31,14 @@ _DATED_MODULES = (
     "app.Reports.scheduled",
     "app.Emails.statements",
     "app.Interest.statement",
+    "app.Access.service",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
 # They are snapshotted after upgrade() and restored before every test.
 REFERENCE_TABLES = (
     "branches",
+    "departments", "permissions", "roles", "role_permissions", "transaction_limits", "sod_conflicts",
 )
 
 

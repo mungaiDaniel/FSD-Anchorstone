@@ -10,8 +10,9 @@ from flask import Blueprint, current_app, request
 from sqlalchemy import func
 
 from app.Admin import service as login_protection
+from app.Access.service import branch_scope
 from app.Admin.model import ROLE_LEVELS, USER_STATUSES, User
-from app.auth import actor_email, admin_required, current_user, password_change_endpoint, super_admin_required
+from app.auth import actor_email, current_user, password_change_endpoint, requires, user_permissions
 from app.database.database import db
 from app.utils.audit_log import create_audit_log, get_client_ip
 from app.utils.dates import iso, utcnow
@@ -103,7 +104,10 @@ def login():
 @user_v1.get("/api/v1/me")
 @password_change_endpoint
 def me():
-    return ok(current_user().to_dict())
+    user = current_user()
+    scope = branch_scope(user)
+    return ok({**user.to_dict(), "permissions": sorted(user_permissions()),
+               "branch_scope": None if scope is None else sorted(scope)})
 
 
 @user_v1.post("/api/v1/me/password")
@@ -129,7 +133,7 @@ def change_own_password():
 
 
 @user_v1.get("/api/v1/users")
-@super_admin_required
+@requires("user.manage")
 def list_users():
     users = User.query.order_by(User.created.desc()).all()
     locked = login_protection.locked_until_by_email([u.email.lower() for u in users])
@@ -137,7 +141,7 @@ def list_users():
 
 
 @user_v1.post("/api/v1/users")
-@super_admin_required
+@requires("user.manage")
 def create_user():
     data = request.get_json(silent=True) or {}
     name = str(data.get("name") or "").strip()
@@ -169,13 +173,13 @@ def create_user():
 
 
 @user_v1.get("/api/v1/users/<int:user_id>")
-@super_admin_required
+@requires("user.manage")
 def get_user(user_id):
     return ok(_get_user(user_id).to_dict())
 
 
 @user_v1.patch("/api/v1/users/<int:user_id>/status")
-@super_admin_required
+@requires("user.manage")
 def set_user_status(user_id):
     status = (request.get_json(silent=True) or {}).get("status")
     if status not in USER_STATUSES:
@@ -191,7 +195,7 @@ def set_user_status(user_id):
 
 
 @user_v1.patch("/api/v1/users/<int:user_id>/role")
-@super_admin_required
+@requires("user.manage")
 def set_user_role(user_id):
     role = (request.get_json(silent=True) or {}).get("role")
     if role not in ROLE_LEVELS:
@@ -207,7 +211,7 @@ def set_user_role(user_id):
 
 
 @user_v1.post("/api/v1/users/<int:user_id>/reset-password")
-@super_admin_required
+@requires("user.manage")
 def reset_password(user_id):
     user = _get_user(user_id)
     _guard_self(user, "reset the password of")  # use Settings -> Change password instead
@@ -221,7 +225,7 @@ def reset_password(user_id):
 
 
 @user_v1.post("/api/v1/users/<int:user_id>/unlock")
-@admin_required
+@requires("user.unlock")
 def unlock_account(user_id):
     """Lift a sign-in lockout early (admins and super admins)."""
     user = _get_user(user_id)
@@ -230,7 +234,7 @@ def unlock_account(user_id):
 
 
 @user_v1.delete("/api/v1/users/<int:user_id>")
-@super_admin_required
+@requires("user.manage")
 def delete_user(user_id):
     user = _get_user(user_id)
     _guard_self(user, "delete")

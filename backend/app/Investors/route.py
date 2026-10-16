@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 
-from app.auth import actor_email, admin_required, staff_required
+from app.auth import actor_email, requires
 from app.Emails.model import OutboxEmail
 from app.Interest.model import LOCKED_PERIOD_STATUSES, InterestPayout, InterestPeriod
 from app.Investors import service
@@ -14,41 +14,41 @@ investors_v1 = Blueprint("investors_v1", __name__)
 
 
 @investors_v1.get("/api/v1/investors")
-@staff_required
+@requires("investor.view")
 def list_investors():
     page, per_page = page_args(request.args)
     return ok(service.list_investors(request.args.get("search"), request.args.get("status"), page, per_page))
 
 
 @investors_v1.post("/api/v1/investors")
-@staff_required
+@requires("investor.create")
 def create_investor():
     investor = service.create_investor(request.get_json(silent=True) or {}, actor_email())
     return ok(service.investor_summary(investor), f"Investor {investor.client_code} created.", 201)
 
 
 @investors_v1.get("/api/v1/investors/<int:investor_id>")
-@staff_required
+@requires("investor.view")
 def get_investor(investor_id):
     return ok(service.investor_summary(service.get_investor(investor_id)))
 
 
 @investors_v1.patch("/api/v1/investors/<int:investor_id>")
-@staff_required
+@requires("investor.edit")
 def update_investor(investor_id):
     investor = service.update_investor(investor_id, request.get_json(silent=True) or {}, actor_email())
     return ok(service.investor_summary(investor), "Investor updated.")
 
 
 @investors_v1.patch("/api/v1/investors/<int:investor_id>/status")
-@admin_required
+@requires("investor.close")
 def set_status(investor_id):
     investor = service.set_investor_status(investor_id, request.get_json(silent=True) or {}, actor_email())
     return ok(service.investor_summary(investor), f"Account {investor.status}.")
 
 
 @investors_v1.get("/api/v1/investors/<int:investor_id>/ledger")
-@staff_required
+@requires("investor.view")
 def investor_ledger(investor_id):
     service.get_investor(investor_id)
     start = parse_date(request.args.get("from"), "from", required=False)
@@ -62,7 +62,7 @@ def investor_ledger(investor_id):
 
 
 @investors_v1.get("/api/v1/investors/<int:investor_id>/deposits")
-@staff_required
+@requires("investor.view")
 def investor_deposits(investor_id):
     service.get_investor(investor_id)
     rows = Deposit.query.filter(Deposit.investor_id == investor_id).order_by(
@@ -71,7 +71,7 @@ def investor_deposits(investor_id):
 
 
 @investors_v1.get("/api/v1/investors/<int:investor_id>/withdrawals")
-@staff_required
+@requires("investor.view")
 def investor_withdrawals(investor_id):
     service.get_investor(investor_id)
     rows = Withdrawal.query.filter(Withdrawal.investor_id == investor_id).order_by(
@@ -80,7 +80,7 @@ def investor_withdrawals(investor_id):
 
 
 @investors_v1.get("/api/v1/investors/<int:investor_id>/payouts")
-@staff_required
+@requires("investor.view")
 def investor_payouts(investor_id):
     service.get_investor(investor_id)
     rows = (
@@ -93,7 +93,7 @@ def investor_payouts(investor_id):
 
 
 @investors_v1.get("/api/v1/investors/<int:investor_id>/emails")
-@staff_required
+@requires("investor.view")
 def investor_emails(investor_id):
     service.get_investor(investor_id)
     rows = OutboxEmail.query.filter(OutboxEmail.investor_id == investor_id).order_by(

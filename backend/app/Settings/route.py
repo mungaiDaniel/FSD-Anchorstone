@@ -4,7 +4,7 @@ credentials and delivery-rate controls.
 """
 from flask import Blueprint, current_app, request
 
-from app.auth import actor_email, super_admin_required
+from app.auth import actor_email, requires
 from app.database.database import db
 from app.Emails.sender import build_message, mail
 from app.logic.scheduler import EMAIL_JOB_ID, next_run
@@ -15,13 +15,13 @@ settings_v1 = Blueprint("settings_v1", __name__)
 
 
 @settings_v1.get("/api/v1/settings/email")
-@super_admin_required
+@requires("settings.email")
 def get_email_settings():
     return ok(get_effective_email_settings(current_app, db.session))
 
 
 @settings_v1.patch("/api/v1/settings/email")
-@super_admin_required
+@requires("settings.email")
 def patch_email_settings():
     data = request.get_json(silent=True) or {}
     if data.get("mail_port") is not None:
@@ -36,7 +36,7 @@ def patch_email_settings():
 
 
 @settings_v1.post("/api/v1/settings/email/test")
-@super_admin_required
+@requires("settings.email")
 def send_test_email():
     recipient = str((request.get_json(silent=True) or {}).get("recipient") or "").strip()
     if not recipient:
@@ -57,7 +57,7 @@ def send_test_email():
 
 
 @settings_v1.get("/api/v1/settings/email-queue")
-@super_admin_required
+@requires("settings.email")
 def get_queue_settings():
     effective = get_effective_email_settings(current_app, db.session)
     return ok({
@@ -68,7 +68,7 @@ def get_queue_settings():
 
 
 @settings_v1.patch("/api/v1/settings/email-queue")
-@super_admin_required
+@requires("settings.email")
 def patch_queue_settings():
     data = request.get_json(silent=True) or {}
     try:

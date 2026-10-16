@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 from flask import Blueprint, request
 from sqlalchemy import func, or_
 
-from app.auth import admin_required
+from app.auth import requires
 from app.database.database import db
 from app.utils.audit_log import AuditLog
 from app.utils.dates import EAT, parse_date
@@ -35,7 +35,7 @@ def filtered_audit_logs(args):
 
 
 @audit_v1.get("/api/v1/audit-logs")
-@admin_required
+@requires("audit.view")
 def get_audit_logs():
     page, per_page = page_args(request.args)
     return ok(paginate(filtered_audit_logs(request.args), page, per_page, lambda r: r.to_dict()))

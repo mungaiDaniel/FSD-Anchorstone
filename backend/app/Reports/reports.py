@@ -363,7 +363,8 @@ def email_report(args) -> Report:
     return Report(f"Anchorstone_email_log{_suffix(start, end)}.xlsx", data, desc, len(rows))
 
 
-# name -> (builder, minimum role, title)
+# name -> (builder, minimum built-in role (for display), title). Access is the
+# permission report.export.<name> (app/Reports/route.py).
 REPORTS = {
     "investors": (investors_report, "user", "Investors report"),
     "deposits": (deposits_report, "user", "Deposits report"),

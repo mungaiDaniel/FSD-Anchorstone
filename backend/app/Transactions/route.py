@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from sqlalchemy import or_
 
-from app.auth import actor_email, admin_required, staff_required
+from app.auth import actor_email, requires
 from app.Emails.model import EMAIL_DEPOSIT_REVERSAL, OutboxEmail
 from app.Investors.model import Investor
 from app.Transactions import service
@@ -26,7 +26,7 @@ def _search(query, model):
 
 
 @transactions_v1.get("/api/v1/deposits")
-@staff_required
+@requires("deposit.view")
 def list_deposits():
     page, per_page = page_args(request.args)
     q = _search(Deposit.query, Deposit)
@@ -45,14 +45,14 @@ def list_deposits():
 
 
 @transactions_v1.post("/api/v1/deposits")
-@staff_required
+@requires("deposit.record")
 def record_deposit():
     deposit = service.record_deposit(request.get_json(silent=True) or {}, actor_email())
     return ok(deposit.to_dict(), "Deposit recorded. A confirmation email has been queued to the investor.", 201)
 
 
 @transactions_v1.post("/api/v1/deposits/<int:deposit_id>/reverse")
-@admin_required
+@requires("deposit.reverse")
 def reverse_deposit(deposit_id):
     deposit = service.reverse_deposit(deposit_id, request.get_json(silent=True) or {}, actor_email())
     notified = OutboxEmail.query.filter_by(deposit_id=deposit.id, email_type=EMAIL_DEPOSIT_REVERSAL).first()
@@ -64,7 +64,7 @@ def reverse_deposit(deposit_id):
 
 
 @transactions_v1.get("/api/v1/withdrawals")
-@staff_required
+@requires("withdrawal.view")
 def list_withdrawals():
     page, per_page = page_args(request.args)
     q = _search(Withdrawal.query, Withdrawal)
@@ -77,21 +77,21 @@ def list_withdrawals():
 
 
 @transactions_v1.post("/api/v1/withdrawals")
-@staff_required
+@requires("withdrawal.request")
 def request_withdrawal():
     withdrawal = service.request_withdrawal(request.get_json(silent=True) or {}, actor_email())
     return ok(withdrawal.to_dict(), "Withdrawal recorded and awaiting approval by an admin.", 201)
 
 
 @transactions_v1.post("/api/v1/withdrawals/<int:withdrawal_id>/approve")
-@admin_required
+@requires("withdrawal.approve")
 def approve_withdrawal(withdrawal_id):
     withdrawal = service.approve_withdrawal(withdrawal_id, request.get_json(silent=True) or {}, actor_email())
     return ok(withdrawal.to_dict(), "Withdrawal approved. A confirmation email has been queued to the investor.")
 
 
 @transactions_v1.post("/api/v1/withdrawals/<int:withdrawal_id>/reject")
-@admin_required
+@requires("withdrawal.approve")
 def reject_withdrawal(withdrawal_id):
     withdrawal = service.reject_withdrawal(withdrawal_id, request.get_json(silent=True) or {}, actor_email())
     return ok(withdrawal.to_dict(), "Withdrawal rejected.")

@@ -1,7 +1,7 @@
 from flask import Blueprint, make_response, request
 
 from app.database.database import db
-from app.auth import actor_email, admin_required, staff_required
+from app.auth import actor_email, requires
 from app.Interest import service
 from app.Interest.model import InterestPayout, InterestPeriod
 from app.Transactions.ledger import locked_through
@@ -14,7 +14,7 @@ interest_v1 = Blueprint("interest_v1", __name__)
 
 
 @interest_v1.get("/api/v1/interest/rates")
-@staff_required
+@requires("interest.view")
 def list_rates():
     current = service.current_rate()
     return ok({
@@ -25,56 +25,56 @@ def list_rates():
 
 
 @interest_v1.post("/api/v1/interest/rates")
-@admin_required
+@requires("interest.rate.set")
 def set_rate():
     rate = service.set_rate(request.get_json(silent=True) or {}, actor_email())
     return ok(rate.to_dict(), "Interest rate saved.", 201)
 
 
 @interest_v1.get("/api/v1/interest/periods")
-@staff_required
+@requires("interest.view")
 def list_periods():
     periods = InterestPeriod.query.order_by(InterestPeriod.period_start.desc()).all()
     return ok({"items": [p.to_dict() for p in periods], "locked_through": iso(locked_through())})
 
 
 @interest_v1.post("/api/v1/interest/periods/calculate")
-@admin_required
+@requires("interest.calculate")
 def calculate_period():
     period = service.calculate_period(request.get_json(silent=True) or {}, actor_email())
     return ok(period.to_dict(), f"Draft calculated for {period.label}. Another admin must review and approve it.", 201)
 
 
 @interest_v1.get("/api/v1/interest/periods/<int:period_id>")
-@staff_required
+@requires("interest.view")
 def get_period(period_id):
     period = service.get_period(period_id)
     return ok({**period.to_dict(), "payouts": [p.to_dict() for p in service.period_payouts(period)]})
 
 
 @interest_v1.delete("/api/v1/interest/periods/<int:period_id>")
-@admin_required
+@requires("interest.discard")
 def discard_draft(period_id):
     service.discard_draft(period_id, actor_email())
     return ok(message="Draft discarded.")
 
 
 @interest_v1.post("/api/v1/interest/periods/<int:period_id>/approve")
-@admin_required
+@requires("interest.approve")
 def approve_period(period_id):
     period = service.approve_period(period_id, actor_email())
     return ok(period.to_dict(), f"{period.label} approved. Statements have been queued to {period.investor_count} investors.")
 
 
 @interest_v1.post("/api/v1/interest/periods/<int:period_id>/mark-paid")
-@admin_required
+@requires("interest.mark_paid")
 def mark_paid(period_id):
     period = service.mark_payouts_paid(period_id, request.get_json(silent=True) or {}, actor_email())
     return ok(period.to_dict(), "Payouts marked paid.")
 
 
 @interest_v1.get("/api/v1/interest/payouts/<int:payout_id>/statement.pdf")
-@staff_required
+@requires("statement.view")
 def payout_statement_pdf(payout_id):
     payout = db.session.get(InterestPayout, payout_id)
     if payout is None:

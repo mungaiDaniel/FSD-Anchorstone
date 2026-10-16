@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, make_response, request
 from sqlalchemy import func, or_
 
-from app.auth import actor_email, admin_required, staff_required
+from app.auth import actor_email, requires
 from app.database.database import db
 from app.Emails.model import (
     STATUS_CANCELLED,
@@ -20,7 +20,7 @@ emails_v1 = Blueprint("emails_v1", __name__)
 
 
 @emails_v1.get("/api/v1/emails")
-@staff_required
+@requires("email.view")
 def list_emails():
     page, per_page = page_args(request.args)
     q = OutboxEmail.query
@@ -38,7 +38,7 @@ def list_emails():
 
 
 @emails_v1.get("/api/v1/emails/status")
-@staff_required
+@requires("email.view")
 def queue_status():
     counts = dict(db.session.query(OutboxEmail.status, func.count()).group_by(OutboxEmail.status).all())
     return ok({
@@ -56,7 +56,7 @@ def _get(email_id: int) -> OutboxEmail:
 
 
 @emails_v1.post("/api/v1/emails/<int:email_id>/retry")
-@admin_required
+@requires("email.manage")
 def retry(email_id):
     email = _get(email_id)
     if email.status not in (STATUS_FAILED, STATUS_CANCELLED):
@@ -71,7 +71,7 @@ def retry(email_id):
 
 
 @emails_v1.post("/api/v1/emails/<int:email_id>/cancel")
-@admin_required
+@requires("email.manage")
 def cancel(email_id):
     email = _get(email_id)
     if email.status != STATUS_QUEUED:
@@ -83,7 +83,7 @@ def cancel(email_id):
 
 
 @emails_v1.post("/api/v1/emails/send-now")
-@admin_required
+@requires("email.send_now")
 def send_now():
     result = drain_queue(batch_size=100)
     return ok(result, f"{result['sent']} sent, {result['failed']} not sent.")
@@ -94,14 +94,14 @@ def send_now():
 
 
 @emails_v1.post("/api/v1/investors/<int:investor_id>/statement-email")
-@admin_required
+@requires("statement.generate")
 def generate_statement_email(investor_id):
     email = statements.generate_for_investor(investor_id, actor_email())
     return ok(email.to_dict(), "Statement generated. Confirm it on the Emails page to send it.", 201)
 
 
 @emails_v1.post("/api/v1/emails/statements/bulk")
-@admin_required
+@requires("statement.generate")
 def generate_statement_emails_bulk():
     result = statements.generate_bulk(request.get_json(silent=True) or {}, actor_email())
     if result["duplicate"]:
@@ -113,21 +113,21 @@ def generate_statement_emails_bulk():
 
 
 @emails_v1.post("/api/v1/emails/confirm")
-@admin_required
+@requires("email.confirm")
 def confirm_emails():
     result = statements.confirm_or_suppress(request.get_json(silent=True) or {}, True, actor_email())
     return ok(result, f"{result['changed']} email(s) confirmed and queued to send.")
 
 
 @emails_v1.post("/api/v1/emails/suppress")
-@admin_required
+@requires("email.confirm")
 def suppress_emails():
     result = statements.confirm_or_suppress(request.get_json(silent=True) or {}, False, actor_email())
     return ok(result, f"{result['changed']} email(s) suppressed. They won't be sent.")
 
 
 @emails_v1.get("/api/v1/emails/<int:email_id>/attachment")
-@staff_required
+@requires("email.view")
 def email_attachment(email_id):
     email = _get(email_id)
     if email.attachment is None:

@@ -81,11 +81,14 @@ Propose a recommended default.
 - Bodies are plain text, rendered into the branded HTML template at send time. Lines starting with "•" become bullets; short ALL-CAPS lines become headings.
 - **Never call `mail.send` from feature code.** The only exception is the SMTP test button in `app/Settings/route.py`.
 
-### Roles come from the database on every request
+### Permissions come from the database on every request
 
-- Every route uses one decorator from `app/auth.py`: `@staff_required`, `@admin_required`, `@super_admin_required`, or `@password_change_endpoint`.
-- The user, role and status are re-read from the DB on each call. JWT claims are never trusted for authorization.
-- Roles: `user` (staff) < `admin` < `super_admin`.
+- Every route uses one decorator from `app/auth.py`: `@requires("<permission>")` or `@password_change_endpoint`. Checks that depend on the request use `require_permission()` / `has_permission()`.
+- Permissions are bundled into roles (`app/Access`). A user's permissions are their primary built-in role (`user.role`) plus any extra roles in `user_roles`.
+- The user, roles and status are re-read from the DB on each call. JWT claims are never trusted for authorization.
+- Built-in roles: `user` â†’ Operations staff âŠ‚ `admin` â†’ Operations admin âŠ‚ `super_admin` â†’ System administrator. They reproduce the old role rules exactly (`tests/test_permissions.py`).
+- A new endpoint gets a new permission in a migration, granted to the right built-in roles, and a row in the route table of `tests/test_permissions.py`.
+- Amount-limited permissions (`withdrawal.approve`, `interest.approve` â€¦) are capped by `transaction_limits`; no limit row means no amount can be decided.
 - An account with `must_change_password` gets 403 `PASSWORD_CHANGE_REQUIRED` everywhere else.
 - Inside a route, use `current_user()` and `actor_email()`.
 - Frontend route guards and `RoleGate` only hide UI. They are never the security boundary.

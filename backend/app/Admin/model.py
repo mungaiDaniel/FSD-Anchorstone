@@ -2,10 +2,11 @@ from datetime import datetime, timezone
 
 from flask_jwt_extended import create_access_token
 from passlib.handlers.md5_crypt import md5_crypt
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Index, Integer, String, true
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, String, true
 from werkzeug.security import check_password_hash as wz_check_password_hash
 from werkzeug.security import generate_password_hash as wz_generate_password_hash
 
+from app.Branches.model import HEAD_OFFICE_ID
 from app.database.database import db
 from base_model import Base
 
@@ -31,6 +32,9 @@ class User(Base, db.Model):
     password = Column(String(1000), nullable=False)
     role = Column(String(20), nullable=False, default="user", server_default="user")
     status = Column(String(20), nullable=False, default="active", server_default="active")
+    # Home branch. Which branches the user may act on is user_branch_scopes (app/Access).
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False,
+                       default=HEAD_OFFICE_ID, server_default=str(HEAD_OFFICE_ID))
     # Set when a super admin creates the account or resets its password (the
     # password is a temporary one they've seen). Until the user picks their own,
     # every endpoint except the password change refuses them (see app/auth.py).
@@ -73,6 +77,7 @@ class User(Base, db.Model):
             "email": self.email,
             "role": self.role,
             "status": self.status,
+            "branch_id": self.branch_id,
             "must_change_password": self.must_change_password,
             "password_changed_at": self.password_changed_at.isoformat() if self.password_changed_at else None,
             "created": self.created.isoformat() if self.created else None,

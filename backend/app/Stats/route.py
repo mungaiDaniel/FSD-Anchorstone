@@ -5,7 +5,7 @@ from decimal import Decimal
 from flask import Blueprint
 from sqlalchemy import func
 
-from app.auth import staff_required
+from app.auth import requires
 from app.database.database import db
 from app.Emails.model import STATUS_FAILED, STATUS_PENDING, STATUS_QUEUED, OutboxEmail
 from app.Interest.model import LOCKED_PERIOD_STATUSES, PERIOD_DRAFT, InterestPeriod
@@ -29,7 +29,7 @@ def _month_start(d: date, months_back: int = 0) -> date:
 
 
 @stats_v1.get("/api/v1/stats/overview")
-@staff_required
+@requires("stats.view")
 def overview():
     today = today_eat()
     month_start = _month_start(today)

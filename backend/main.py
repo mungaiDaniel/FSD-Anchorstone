@@ -30,6 +30,9 @@ migrate = Migrate()
 
 def _import_models():
     # Registers every table on db.metadata (for Alembic and relationships).
+    from app.Access.model import (  # noqa: F401
+        Department, Permission, Role, RolePermission, SodConflict, TransactionLimit, UserBranchScope, UserRole,
+    )
     from app.Admin.model import AccountLockout, LoginAttempt, User  # noqa: F401
     from app.Backup.model import BackupLog  # noqa: F401
     from app.Branches.model import Branch  # noqa: F401
