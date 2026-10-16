@@ -65,3 +65,4 @@ def load_handlers() -> None:
     """Import every module that registers handlers (called once from create_app)."""
     import app.Access.handlers  # noqa: F401
     import app.Settings.handlers  # noqa: F401
+    import app.Documents.service  # noqa: F401

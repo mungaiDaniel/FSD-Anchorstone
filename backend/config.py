@@ -9,7 +9,9 @@ silently running with a guessable key. See .env.example for every variable.
 Select the config with APP_ENV = development | production | testing
 (default: development).
 """
+import base64
 import os
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -69,6 +71,14 @@ class BaseConfig:
     EMAIL_QUEUE_INTERVAL_MINUTES = _env_int("EMAIL_QUEUE_INTERVAL_MINUTES", 2)
     EMAIL_QUEUE_BATCH_SIZE = _env_int("EMAIL_QUEUE_BATCH_SIZE", 100)
 
+    # Encrypted document storage (app/Documents). DOCUMENT_KEK is base64 of 32 random bytes:
+    #   python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
+    # It is NOT derived from SECRET_KEY. Losing it makes every stored document unreadable.
+    DOCUMENT_STORE_BACKEND = os.environ.get("DOCUMENT_STORE_BACKEND", "local")
+    DOCUMENT_STORE_PATH = os.environ.get("DOCUMENT_STORE_PATH")  # default: backend/instance/documents
+    DOCUMENT_KEK = os.environ.get("DOCUMENT_KEK")
+    DOCUMENT_KEK_ID = os.environ.get("DOCUMENT_KEK_ID", "env-1")
+
     # Daily pg_dump -> OneDrive backups. Off until Azure credentials are set up.
     DB_BACKUP_ENABLED = _env_bool("DB_BACKUP_ENABLED", False)
     DB_BACKUP_HOUR_UTC = _env_int("DB_BACKUP_HOUR_UTC", 1)
@@ -114,6 +124,9 @@ class TestingConfig(BaseConfig):
     MAIL_SUPPRESS_SEND = True
     MAIL_DEFAULT_SENDER = "statements@anchorstone.test"
     APPLY_DB_EMAIL_SETTINGS = False
+    DOCUMENT_KEK = base64.b64encode(b"anchorstone-test-kek-32-bytes!!!").decode()
+    DOCUMENT_KEK_ID = "test-1"
+    DOCUMENT_STORE_PATH = os.path.join(tempfile.gettempdir(), "anchorstone_test_documents")
     DB_BACKUP_ENABLED = False
 
 

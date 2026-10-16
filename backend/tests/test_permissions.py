@@ -86,6 +86,9 @@ NEW_SINCE_PHASE_1 = {
     *(("POST", f"/api/v1/change-requests/<int:request_id>/{a}")
       for a in ("approve", "reject", "return", "resubmit", "cancel")),
     ("GET", "/api/v1/settings/business"), ("POST", "/api/v1/settings/business/<key>"),
+    ("POST", "/api/v1/documents"), ("GET", "/api/v1/documents/<uuid:document_id>"),
+    ("GET", "/api/v1/documents/<uuid:document_id>/content"),
+    ("POST", "/api/v1/documents/<uuid:document_id>/destroy"),
 }
 
 

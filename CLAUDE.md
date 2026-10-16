@@ -112,6 +112,7 @@ Propose a recommended default.
 - **Test databases:**
   - The test DB name must contain `test`, because it is wiped on every run.
   - The demo seed refuses any DB name without `demo`.
+- **Uploaded documents** go through `app/Documents/service.py` only: AES-256-GCM with a per-file key wrapped by `DOCUMENT_KEK` (not `SECRET_KEY`), bytes in a `DocumentStore`, every read logged in `data_access_logs`. Never serve a store URL or the raw bytes, and never delete a document row: destroying one is a `document.destroy` change request (the key and blob go; the row stays).
 - `MAIL_SUPPRESS_SEND=true` means nothing is actually sent. Check it before pointing at real investor data.
 - **No public sign-up:**
   - Super admins create accounts with a one-time temporary password.
