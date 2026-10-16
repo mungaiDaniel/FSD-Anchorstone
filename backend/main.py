@@ -1,4 +1,4 @@
- """
+"""
 Anchorstone Capital Ltd — statement system API.
 
     flask --app main db upgrade                  # create / migrate the schema
