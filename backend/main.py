@@ -34,6 +34,7 @@ def _import_models():
         Department, Permission, Role, RolePermission, SodConflict, TransactionLimit, UserBranchScope, UserRole,
     )
     from app.Admin.model import AccountLockout, LoginAttempt, User  # noqa: F401
+    from app.Approvals.model import ApprovalPolicy, ChangeRequest, ChangeRequestEvent  # noqa: F401
     from app.Backup.model import BackupLog  # noqa: F401
     from app.Branches.model import Branch  # noqa: F401
     from app.Emails.model import EmailAttachment, OutboxEmail  # noqa: F401
@@ -85,6 +86,8 @@ def create_app(config_name: str | None = None) -> Flask:
     register_error_handlers(app, db)
 
     from app.Admin.route import user_v1
+    from app.Approvals.handlers import load_handlers
+    from app.Approvals.route import approvals_v1
     from app.Audit.route import audit_v1
     from app.Backup.route import backup_v1
     from app.Emails.route import emails_v1
@@ -96,8 +99,9 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.Transactions.route import transactions_v1
 
     for bp in (user_v1, investors_v1, transactions_v1, interest_v1, emails_v1, stats_v1,
-               settings_v1, audit_v1, backup_v1, reports_v1):
+               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1):
         app.register_blueprint(bp)
+    load_handlers()
 
     @app.get("/api/v1/health")
     def health():

@@ -32,6 +32,7 @@ _DATED_MODULES = (
     "app.Emails.statements",
     "app.Interest.statement",
     "app.Access.service",
+    "app.Access.handlers",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
@@ -39,6 +40,7 @@ _DATED_MODULES = (
 REFERENCE_TABLES = (
     "branches",
     "departments", "permissions", "roles", "role_permissions", "transaction_limits", "sod_conflicts",
+    "approval_policies",
 )
 
 
@@ -56,13 +58,39 @@ def app():
         db.session.execute(text("DROP SCHEMA IF EXISTS seed_snapshot CASCADE; CREATE SCHEMA seed_snapshot;"))
         for name in REFERENCE_TABLES:
             db.session.execute(text(f'CREATE TABLE seed_snapshot."{name}" AS SELECT * FROM public."{name}"'))
+            _SEED_FINGERPRINTS[name] = _fingerprint(name)
         db.session.commit()
     yield app
 
 
+_SEED_FINGERPRINTS: dict[str, str] = {}
+_SEQUENCES: list[str] = []
+
+
+def _id_sequences(names) -> list[str]:
+    if not _SEQUENCES:
+        for n in names:
+            seq = db.session.execute(text("SELECT pg_get_serial_sequence(:t, 'id')"), {"t": n}).scalar() \
+                if db.metadata.tables[n].c.get("id") is not None else None
+            if seq:
+                _SEQUENCES.append(seq)
+    return _SEQUENCES
+
+
+def _fingerprint(name: str) -> str:
+    return db.session.execute(text(
+        "SELECT count(*) || ':' || coalesce(md5(string_agg(t::text, ',' ORDER BY t::text)), '') "
+        f'FROM public."{name}" t')).scalar()
+
+
 def _restore_reference_data():
+    """Put back only the reference tables a test changed (or that a cascade emptied)."""
+    changed = [n for n in REFERENCE_TABLES if _fingerprint(n) != _SEED_FINGERPRINTS[n]]
+    if not changed:
+        return
+    db.session.execute(text("TRUNCATE " + ", ".join(f'"{n}"' for n in changed) + " CASCADE"))
     for table in db.metadata.sorted_tables:  # parents before children
-        if table.name not in REFERENCE_TABLES:
+        if table.name not in REFERENCE_TABLES or _fingerprint(table.name) == _SEED_FINGERPRINTS[table.name]:
             continue
         db.session.execute(text(f'INSERT INTO "{table.name}" SELECT * FROM seed_snapshot."{table.name}"'))
         for col in table.primary_key.columns:
@@ -76,8 +104,15 @@ def _restore_reference_data():
 @pytest.fixture(autouse=True)
 def clean_db(app):
     with app.app_context():
-        tables = ", ".join(f'"{t.name}"' for t in db.metadata.sorted_tables)
-        db.session.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        # TRUNCATE is slow per table, so only tables holding rows are truncated;
+        # the others just get their id sequences reset.
+        names = [t.name for t in db.metadata.sorted_tables if t.name not in REFERENCE_TABLES]
+        probe = " UNION ALL ".join(f"SELECT '{n}' WHERE EXISTS (SELECT 1 FROM \"{n}\")" for n in names)
+        filled = [r[0] for r in db.session.execute(text(probe))]
+        if filled:
+            db.session.execute(text("TRUNCATE " + ", ".join(f'"{n}"' for n in filled) + " RESTART IDENTITY CASCADE"))
+        for seq in _id_sequences(names):
+            db.session.execute(text("SELECT setval(:s, 1, false)"), {"s": seq})
         db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
         _restore_reference_data()
         db.session.commit()
@@ -101,9 +136,14 @@ def client(app):
     return app.test_client()
 
 
+_PASSWORD_HASH: list[str] = []  # hashing is deliberately slow; every test user shares one hash
+
+
 def _make_user(email, role, status="active"):
+    if not _PASSWORD_HASH:
+        _PASSWORD_HASH.append(User.generate_password_hash("password123"))
     user = User(name=email.split("@")[0].title(), email=email,
-                password=User.generate_password_hash("password123"), role=role, status=status,
+                password=_PASSWORD_HASH[0], role=role, status=status,
                 must_change_password=False)
     db.session.add(user)
     db.session.commit()

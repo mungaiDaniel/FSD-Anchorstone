@@ -19,6 +19,7 @@ from decimal import Decimal
 
 from sqlalchemy import func
 
+from app.Approvals.policy import assert_can_decide
 from app.database.database import db
 from app.Emails.composer import (
     queue_deposit_confirmation,
@@ -52,7 +53,7 @@ from app.Transactions.model import (
 )
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import parse_date, today_eat, utcnow
-from app.utils.http import Conflict, Forbidden, NotFound, ValidationError
+from app.utils.http import Conflict, NotFound, ValidationError
 from app.utils.money import as_str, fmt_kes, parse_amount
 
 
@@ -231,8 +232,11 @@ def _pending_withdrawal_for_decision(withdrawal_id: int, actor: str) -> Withdraw
     db.session.refresh(withdrawal)
     if withdrawal.status != WITHDRAWAL_PENDING:
         raise Conflict(f"This withdrawal has already been {withdrawal.status}.")
-    if withdrawal.requested_by.lower() == actor.lower():
-        raise Forbidden("Maker-checker: a withdrawal must be approved or rejected by someone other than the person who recorded it.")
+    assert_can_decide(
+        "withdrawal.approve", maker_email=withdrawal.requested_by, actor_email=actor,
+        amount=Decimal(withdrawal.amount), branch_id=withdrawal.branch_id,
+        maker_message="Maker-checker: a withdrawal must be approved or rejected by someone other than the person who recorded it.",
+    )
     return withdrawal
 
 

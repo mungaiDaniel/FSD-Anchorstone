@@ -38,12 +38,12 @@ Propose a recommended default.
 
 ### Maker-checker
 
-- **The person who creates a record can never approve it.**
-- The check is in the service layer: compare actor emails case-insensitively and raise `Forbidden("Maker-checker: …")`.
-- Today it covers:
+- **The person who creates a record can never approve it.** The rule is implemented once, in `app/Approvals/policy.py`, and enforced again by the database.
+- **Records that are requests by nature** (withdrawals, interest periods) keep their own status and call `assert_can_decide(request_type, maker_email=…, actor_email=…, amount=…, branch_id=…, maker_message="Maker-checker: …")`. It checks maker ≠ checker (emails, case-insensitive), the approval policy, the level's permission, the approver's transaction limit and branch scope. CHECK constraints back it up:
   - withdrawals (`requested_by` ≠ `decided_by`)
   - monthly interest (`calculated_by` ≠ `approved_by`)
-- Every new approval step must follow the same pattern. Write a test for both the refused and the allowed path.
+- **Changes to existing data** (access, settings, document destruction, later party and loan edits) are **change requests** (`app/Approvals`): a handler with `validate` / `apply` / `describe` / `base_version`, registered with `@register` and loaded in `load_handlers()`. Approval policies (`approval_policies`) choose the levels by request type and amount. A DB trigger refuses a decision by the maker; a unique index stops one person approving twice.
+- Every new approval step must follow the same pattern. Write a test for both the refused and the allowed path, including a raw-SQL test that the database refuses maker = checker.
 
 ### Posted records are never edited or deleted
 

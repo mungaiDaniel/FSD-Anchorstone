@@ -80,7 +80,12 @@ OLD_REPORT_ROLE = {"investors": "user", "deposits": "user", "withdrawals": "user
 PUBLIC = {("POST", "/api/v1/login"), ("GET", "/api/v1/health")}
 SELF_SERVICE = {("GET", "/api/v1/me"), ("POST", "/api/v1/me/password")}
 # Endpoints added after phase 1 (by later 2a commits); checked by their own tests.
-NEW_SINCE_PHASE_1: set = set()
+NEW_SINCE_PHASE_1 = {
+    ("GET", "/api/v1/change-requests"), ("POST", "/api/v1/change-requests"),
+    ("GET", "/api/v1/change-requests/<int:request_id>"),
+    *(("POST", f"/api/v1/change-requests/<int:request_id>/{a}")
+      for a in ("approve", "reject", "return", "resubmit", "cancel")),
+}
 
 
 def _routes(app):

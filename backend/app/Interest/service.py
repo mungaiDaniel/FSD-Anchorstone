@@ -30,6 +30,7 @@ from decimal import Decimal
 
 from sqlalchemy import func
 
+from app.Approvals.policy import assert_can_decide
 from app.database.database import db
 from app.Emails.composer import queue_interest_statement
 from app.Interest.model import (
@@ -47,7 +48,7 @@ from app.Investors.model import Investor
 from app.Transactions.ledger import balance_events, locked_through
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import month_bounds, parse_date, today_eat, utcnow
-from app.utils.http import Conflict, Forbidden, NotFound, ValidationError
+from app.utils.http import Conflict, NotFound, ValidationError
 from app.utils.money import ZERO, as_str, fmt_kes, parse_rate_percent, round_money
 
 DAY_COUNT = Decimal(365)
@@ -304,8 +305,11 @@ def approve_period(period_id: int, actor: str) -> InterestPeriod:
         raise NotFound("Interest period not found.")
     if period.status != PERIOD_DRAFT:
         raise Conflict(f"{period.label} has already been {period.status}.")
-    if period.calculated_by.lower() == actor.lower():
-        raise Forbidden("Maker-checker: interest must be approved by a different admin from the one who calculated it.")
+    assert_can_decide(
+        "interest.approve", maker_email=period.calculated_by, actor_email=actor,
+        amount=Decimal(period.total_gross), branch_id=None,
+        maker_message="Maker-checker: interest must be approved by a different admin from the one who calculated it.",
+    )
 
     # Re-run against the live ledger; refuse if anything moved since the draft.
     fresh = {c.investor_id: c.gross for c in compute_payouts(period.period_start, period.period_end)}
