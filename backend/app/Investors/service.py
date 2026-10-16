@@ -1,5 +1,9 @@
 """
 Investor accounts: one running balance per investor.
+
+Since phase 2b every investor is the investment role of a party (app/Parties):
+creating one creates the party (or attaches to an existing one) and an
+investment account numbered with the ACL- code; edits reach the party too.
 """
 import re
 
@@ -8,9 +12,12 @@ from sqlalchemy import func, or_
 from app.database.database import db
 from app.Interest.model import PAYOUT_PENDING, InterestPayout
 from app.Investors.model import INVESTOR_STATUSES, PAYOUT_METHODS, Investor, client_code_seq
+from app.Parties import investors as party_link
+from app.Parties import service as parties
+from app.Parties.model import Account
 from app.Transactions.ledger import balances_subquery, investor_totals, lock_investor
 from app.utils.audit_log import create_audit_log
-from app.utils.dates import utcnow
+from app.utils.dates import EAT, utcnow
 from app.utils.http import Conflict, NotFound, ValidationError
 from app.utils.money import as_str
 
@@ -72,16 +79,47 @@ def _assert_email_free(email: str, exclude_id: int | None = None) -> None:
         raise Conflict(f"Investor {clash.client_code} already uses this email. Each investor has one account.")
 
 
-def create_investor(data: dict, actor: str) -> Investor:
-    values = _clean(data, partial=False)
-    _assert_email_free(values["email"])
-
+def _new_investor(party, values: dict, actor: str) -> Investor:
     number = db.session.execute(client_code_seq.next_value()).scalar()
-    investor = Investor(client_code=f"ACL-{number:06d}", created_by=actor, status="active", **values)
+    client_code = f"ACL-{number:06d}"
+    account = party_link.open_investment_account(party, client_code, actor, party.home_branch_id)
+    investor = Investor(client_code=client_code, created_by=actor, status="active", party_id=party.id,
+                        account_id=account.id, branch_id=party.home_branch_id, **values)
     db.session.add(investor)
     db.session.flush()
     create_audit_log("CREATE_INVESTOR", target_type="investor", target_id=investor.id,
                      target_name=investor.client_code, new_value=investor.to_dict())
+    return investor
+
+
+def create_investor(data: dict, actor: str) -> Investor:
+    """A new investor and its party. A person already on file (same ID or PIN) is refused, naming the
+    record to add the account to instead (KYC-04)."""
+    values = _clean(data, partial=False)
+    _assert_email_free(values["email"])
+    party = party_link.new_party_for_investor(values, actor)
+    parties.refresh_kyc_status(party)
+    create_audit_log("CREATE_PARTY", target_type="party", target_id=party.id, target_name=party.party_no,
+                     description=f"Created with investor account for {party.display_name}.",
+                     new_value=parties.party_detail(party))
+    investor = _new_investor(party, values, actor)
+    db.session.commit()
+    return investor
+
+
+def attach_investor(party_id: int, data: dict, actor: str) -> Investor:
+    """Give an existing client (a borrower, guarantor, director …) the investor role and an account."""
+    party = parties.lock_party(party_id)
+    if party.status != "active":
+        raise Conflict(f"{party.party_no} is {party.status}; it can't open an investment account.")
+    if Investor.query.filter_by(party_id=party.id).first():
+        raise Conflict(f"{party.party_no} already has an investment account.")
+    values = party_link.investor_fields_from_party(party)
+    values["email"] = party_link.statement_email_for(party, data.get("email"))
+    values["notes"] = (str(data.get("notes") or "").strip() or None)
+    values = {**values, **_clean({k: v for k, v in values.items()}, partial=True)}
+    _assert_email_free(values["email"])
+    investor = _new_investor(party, values, actor)
     db.session.commit()
     return investor
 
@@ -95,6 +133,7 @@ def update_investor(investor_id: int, data: dict, actor: str) -> Investor:
     old = {k: getattr(investor, k) for k in values}
     for key, value in values.items():
         setattr(investor, key, value)
+    party_link.apply_investor_fields(db.session.get(parties.Party, investor.party_id), values)
     create_audit_log("UPDATE_INVESTOR", target_type="investor", target_id=investor.id,
                      target_name=investor.client_code, old_value=old, new_value=values)
     db.session.commit()
@@ -123,6 +162,9 @@ def set_investor_status(investor_id: int, data: dict, actor: str) -> Investor:
         investor.closed_at = utcnow()
     else:
         investor.closed_at = None
+    account = db.session.get(Account, investor.account_id)
+    account.status = status
+    account.closed_on = investor.closed_at.astimezone(EAT).date() if investor.closed_at else None
 
     old = investor.status
     investor.status = status

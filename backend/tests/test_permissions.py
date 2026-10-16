@@ -94,6 +94,7 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/parties/<int:party_id>/relationships"),
     ("POST", "/api/v1/parties/<int:party_id>/relationships/<int:relationship_id>/end"),
     ("PUT", "/api/v1/parties/<int:party_id>/mandate"), ("POST", "/api/v1/parties/<int:party_id>/verify"),
+    ("POST", "/api/v1/parties/<int:party_id>/investor"),
 }
 
 

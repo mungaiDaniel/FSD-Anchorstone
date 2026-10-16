@@ -8,6 +8,7 @@ Clients (parties).
     POST  /api/v1/parties/<id>/relationships/<rid>/end
     PUT   /api/v1/parties/<id>/mandate            signing rule
     POST  /api/v1/parties/<id>/verify             submits a party.verify change request
+    POST  /api/v1/parties/<id>/investor           opens an investment account (investor role)
 """
 from flask import Blueprint, request
 
@@ -68,3 +69,13 @@ def set_mandate(party_id):
 def request_verification(party_id):
     cr = service.request_verification(party_id, current_user(), _body().get("reason"))
     return ok(cr.to_dict(approvals.summary(cr)), "Submitted for KYC verification.", 201)
+
+
+@parties_v1.post("/api/v1/parties/<int:party_id>/investor")
+@requires("investor.create")
+def attach_investor(party_id):
+    """Open an investment account for an existing client (the next ACL- code); body {email?, notes?}."""
+    from app.Investors import service as investors
+
+    investor = investors.attach_investor(party_id, _body(), actor_email())
+    return ok(investors.investor_summary(investor), f"Investor {investor.client_code} created.", 201)

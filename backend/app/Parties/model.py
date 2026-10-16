@@ -333,3 +333,35 @@ class PartyMandate(Base, db.Model):
     def to_dict(self) -> dict:
         return {"id": self.id, "rule": self.rule, "description": self.description,
                 "effective_from": iso(self.effective_from), "status": self.status, "created_by": self.created_by}
+
+
+ACCOUNT_TYPES = ("investment",)
+ACCOUNT_STATUSES = ("active", "closed")
+
+
+class Account(Base, db.Model):
+    """A customer-facing ledger (02 ADR-02-2). Today only investment accounts, numbered with the
+    investor's ACL- client code; the balance itself still comes from app/Transactions/ledger.py."""
+    __tablename__ = "accounts"
+    __table_args__ = (
+        CheckConstraint(_in("account_type", ACCOUNT_TYPES), name="ck_accounts_type"),
+        CheckConstraint(_in("status", ACCOUNT_STATUSES), name="ck_accounts_status"),
+        CheckConstraint("currency = 'KES'", name="ck_accounts_currency_kes"),
+        CheckConstraint("(status = 'closed') = (closed_on IS NOT NULL)", name="ck_accounts_closed_on"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    account_no = Column(String(20), nullable=False, unique=True)
+    account_type = Column(String(12), nullable=False)
+    party_id = Column(Integer, ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True)
+    currency = Column(String(3), nullable=False, default="KES", server_default="KES")
+    status = Column(String(10), nullable=False, default="active", server_default="active")
+    opened_on = Column(Date, nullable=False)
+    closed_on = Column(Date, nullable=True)
+    created_by = Column(String(120), nullable=False)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "account_no": self.account_no, "account_type": self.account_type,
+                "party_id": self.party_id, "branch_id": self.branch_id, "currency": self.currency,
+                "status": self.status, "opened_on": iso(self.opened_on), "closed_on": iso(self.closed_on)}

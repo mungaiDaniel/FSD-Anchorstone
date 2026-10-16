@@ -44,7 +44,7 @@ def _import_models():
     from app.Investors.model import Investor  # noqa: F401
     from app.Jobs.model import Job, PeriodicTask  # noqa: F401
     from app.Parties.model import (  # noqa: F401
-        Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
+        Account, Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
         PartyPerson, PartyRelationship, PartyRole,
     )
     from app.Reports.model import ReportSchedule  # noqa: F401
@@ -155,6 +155,20 @@ def _register_cli(app: Flask) -> None:
         """Run background jobs: email sending, scheduled reports, backups, expiries."""
         from app.Jobs.worker import run_worker
         run_worker(app, [q.strip() for q in queues.split(",") if q.strip()] or None, poll)
+
+    @app.cli.command("kyc-preflight")
+    def kyc_preflight():
+        """Read-only: list investors that would block or need review before moving onto parties."""
+        from sqlalchemy import text
+
+        from app.Parties.preflight import format_report, investor_preflight
+
+        rows = db.session.execute(text(
+            "SELECT id, client_code, full_name, id_number, kra_pin, phone FROM investors ORDER BY id")).all()
+        report = investor_preflight(rows)
+        click.echo(format_report(report))
+        if report["blocking"]:
+            raise SystemExit(1)
 
     @app.cli.command("create-superadmin")
     @click.option("--name", prompt=True)

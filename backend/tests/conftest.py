@@ -104,6 +104,28 @@ def _restore_reference_data():
                                    {"s": seq})
 
 
+_FAST_EMPTY: list[bool] = []
+
+
+def _empty(filled: list[str]) -> None:
+    """Empty the tables a test filled. TRUNCATE costs a file per table (slow on Windows), so when the
+    test role may suspend triggers and FK checks, small tables are emptied with DELETE instead
+    (children first; the guard triggers that refuse DELETE are suspended too)."""
+    if _FAST_EMPTY != [False]:
+        try:
+            with db.session.begin_nested():
+                db.session.execute(text("SET LOCAL session_replication_role = replica"))
+                order = [t.name for t in reversed(db.metadata.sorted_tables) if t.name in filled]
+                for name in order:
+                    db.session.execute(text(f'DELETE FROM "{name}"'))
+                db.session.execute(text("SET LOCAL session_replication_role = DEFAULT"))
+            _FAST_EMPTY[:] = [True]
+            return
+        except Exception:
+            _FAST_EMPTY[:] = [False]
+    db.session.execute(text("TRUNCATE " + ", ".join(f'"{n}"' for n in filled) + " RESTART IDENTITY CASCADE"))
+
+
 @pytest.fixture(autouse=True)
 def clean_db(app):
     with app.app_context():
@@ -113,7 +135,7 @@ def clean_db(app):
         probe = " UNION ALL ".join(f"SELECT '{n}' WHERE EXISTS (SELECT 1 FROM \"{n}\")" for n in names)
         filled = [r[0] for r in db.session.execute(text(probe))]
         if filled:
-            db.session.execute(text("TRUNCATE " + ", ".join(f'"{n}"' for n in filled) + " RESTART IDENTITY CASCADE"))
+            _empty(filled)
         for seq in _id_sequences(names):
             db.session.execute(text("SELECT setval(:s, 1, false)"), {"s": seq})
         db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
