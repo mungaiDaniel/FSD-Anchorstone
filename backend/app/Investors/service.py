@@ -126,20 +126,36 @@ def attach_investor(party_id: int, data: dict, actor: str) -> Investor:
     return investor
 
 
-def update_investor(investor_id: int, data: dict, actor: str) -> Investor:
+def update_investor(investor_id: int, data: dict, actor_user):
+    """Contact details and notes save at once; identity, bank and payout fields (kyc.maker_checker_fields)
+    become a party.change request that a different person approves (KYC-08). Returns (investor, request)."""
+    from app.Approvals import service as approvals
+    from app.Parties.changes import INVESTOR_GROUPS, controlled_groups
+
     investor = get_investor(investor_id)
     values = _clean(data, partial=True)
+    values = {k: v for k, v in values.items() if getattr(investor, k) != v}  # only what changes
+    groups = controlled_groups()
+    controlled = {k: v for k, v in values.items() if INVESTOR_GROUPS.get(k) in groups}
+    direct = {k: v for k, v in values.items() if k not in controlled}
     if "email" in values:
         _assert_email_free(values["email"], exclude_id=investor.id)
 
-    old = {k: getattr(investor, k) for k in values}
-    for key, value in values.items():
-        setattr(investor, key, value)
-    party_link.apply_investor_fields(db.session.get(parties.Party, investor.party_id), values, actor)
-    create_audit_log("UPDATE_INVESTOR", target_type="investor", target_id=investor.id,
-                     target_name=investor.client_code, old_value=old, new_value=values)
+    if direct:
+        old = {k: getattr(investor, k) for k in direct}
+        for key, value in direct.items():
+            setattr(investor, key, value)
+        party_link.apply_investor_fields(db.session.get(parties.Party, investor.party_id),
+                                         {k: v for k, v in direct.items() if k != "notes"}, actor_user.email)
+        create_audit_log("UPDATE_INVESTOR", target_type="investor", target_id=investor.id,
+                         target_name=investor.client_code, old_value=old, new_value=direct)
+    cr = None
+    if controlled:
+        cr = approvals.submit("party.change", {
+            "party_id": investor.party_id, "investor_fields": controlled,
+            "groups": sorted({INVESTOR_GROUPS[k] for k in controlled})}, actor_user, data.get("reason"), commit=False)
     db.session.commit()
-    return investor
+    return investor, cr
 
 
 def set_investor_status(investor_id: int, data: dict, actor: str) -> Investor:

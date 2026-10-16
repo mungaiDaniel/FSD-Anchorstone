@@ -4,6 +4,7 @@ Clients (parties).
     GET   /api/v1/parties                         ?search ?type ?kyc_status ?role
     POST  /api/v1/parties                         individual or organisation
     GET   /api/v1/parties/<id>
+    PATCH /api/v1/parties/<id>                    direct fields save; identity/bank/payout → party.change
     POST  /api/v1/parties/<id>/relationships      next of kin, director, guarantor …
     POST  /api/v1/parties/<id>/relationships/<rid>/end
     PUT   /api/v1/parties/<id>/mandate            signing rule
@@ -55,6 +56,25 @@ def create_party():
 @requires("party.view")
 def get_party(party_id):
     return ok(service.party_detail(service.get_party(party_id)))
+
+
+@parties_v1.patch("/api/v1/parties/<int:party_id>")
+@requires("party.edit")
+def edit_party(party_id):
+    """Contact and other details save at once; identity, bank and payout changes go for approval (KYC-08)."""
+    from app.Parties.changes import describe_groups, edit_party as edit
+
+    result = edit(party_id, _body(), current_user())
+    cr = result["change_request"]
+    parts = []
+    if result["saved"]:
+        parts.append("Saved.")
+    if cr is not None:
+        parts.append(f"The {describe_groups(cr.payload['changes']['groups'])} change needs a second person's "
+                     f"approval (request #{cr.id}).")
+    return ok({**service.party_detail(service.get_party(party_id)), "saved": result["saved"],
+               "change_request": cr.to_dict(approvals.summary(cr)) if cr else None},
+              " ".join(parts) or "Nothing changed.")
 
 
 @parties_v1.post("/api/v1/parties/<int:party_id>/relationships")

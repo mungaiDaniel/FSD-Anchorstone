@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 
-from app.auth import actor_email, requires
+from app.auth import actor_email, current_user, requires
 from app.Emails.model import OutboxEmail
 from app.Interest.model import LOCKED_PERIOD_STATUSES, InterestPayout, InterestPeriod
 from app.Investors import service
@@ -36,8 +36,10 @@ def get_investor(investor_id):
 @investors_v1.patch("/api/v1/investors/<int:investor_id>")
 @requires("investor.edit")
 def update_investor(investor_id):
-    investor = service.update_investor(investor_id, request.get_json(silent=True) or {}, actor_email())
-    return ok(service.investor_summary(investor), "Investor updated.")
+    investor, cr = service.update_investor(investor_id, request.get_json(silent=True) or {}, current_user())
+    message = "Investor updated." if cr is None else (
+        f"Saved. The identity, bank or payout changes need a second person's approval (request #{cr.id}).")
+    return ok(service.investor_summary(investor), message)
 
 
 @investors_v1.patch("/api/v1/investors/<int:investor_id>/status")

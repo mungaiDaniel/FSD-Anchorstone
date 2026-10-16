@@ -91,6 +91,7 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/documents/<uuid:document_id>/destroy"),
     # Phase 2b: clients (parties)
     ("GET", "/api/v1/parties"), ("POST", "/api/v1/parties"), ("GET", "/api/v1/parties/<int:party_id>"),
+    ("PATCH", "/api/v1/parties/<int:party_id>"),
     ("POST", "/api/v1/parties/<int:party_id>/relationships"),
     ("POST", "/api/v1/parties/<int:party_id>/relationships/<int:relationship_id>/end"),
     ("PUT", "/api/v1/parties/<int:party_id>/mandate"), ("POST", "/api/v1/parties/<int:party_id>/verify"),
