@@ -36,6 +36,7 @@ DEPOSIT_STATUSES = (DEPOSIT_POSTED, DEPOSIT_REVERSED)
 
 EMAIL_TYPE_LABELS = {
     "DEPOSIT_CONFIRMATION": "Deposit confirmation",
+    "DEPOSIT_REVERSAL": "Deposit reversal notice",
     "WITHDRAWAL_CONFIRMATION": "Withdrawal confirmation",
     "INTEREST_STATEMENT": "Interest statement",
     "ACCOUNT_STATEMENT": "Account statement",

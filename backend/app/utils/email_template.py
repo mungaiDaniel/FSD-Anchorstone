@@ -19,6 +19,7 @@ LOGO_CONTENT_ID = "anchorstone_logo"
 
 EMAIL_TITLES = {
     "DEPOSIT_CONFIRMATION": "Deposit Confirmation",
+    "DEPOSIT_REVERSAL": "Deposit Reversed",
     "WITHDRAWAL_CONFIRMATION": "Withdrawal Confirmation",
     "INTEREST_STATEMENT": "Interest Statement",
     "ACCOUNT_STATEMENT": "Account Statement",

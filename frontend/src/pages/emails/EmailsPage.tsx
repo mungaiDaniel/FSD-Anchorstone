@@ -14,6 +14,7 @@ import { apiErrorMessage, formatDateTime } from "@/lib/utils";
 const PER_PAGE = 50;
 const TYPE_LABELS: Record<string, string> = {
   DEPOSIT_CONFIRMATION: "Deposit confirmation",
+  DEPOSIT_REVERSAL: "Deposit reversal notice",
   WITHDRAWAL_CONFIRMATION: "Withdrawal confirmation",
   INTEREST_STATEMENT: "Interest statement",
   ACCOUNT_STATEMENT: "Account statement",

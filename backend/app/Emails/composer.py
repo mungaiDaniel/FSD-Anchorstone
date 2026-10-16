@@ -1,5 +1,5 @@
 """
-Builds the three investor emails and adds them to the outbox.
+Builds the transaction and statement emails and adds them to the outbox.
 
 The queue_* functions add the OutboxEmail to the current session WITHOUT
 committing — callers commit it together with the deposit / withdrawal /
@@ -15,6 +15,7 @@ from flask import current_app
 from app.database.database import db
 from app.Emails.model import (
     EMAIL_DEPOSIT_CONFIRMATION,
+    EMAIL_DEPOSIT_REVERSAL,
     EMAIL_INTEREST_STATEMENT,
     EMAIL_WITHDRAWAL_CONFIRMATION,
     OutboxEmail,
@@ -68,6 +69,38 @@ def queue_deposit_confirmation(deposit, actor: str | None) -> OutboxEmail:
         recipient_email=investor.email,
         recipient_name=investor.full_name,
         subject=f"Deposit confirmation — {fmt_kes(deposit.amount)} received",
+        body=body,
+        created_by=actor,
+    )
+    db.session.add(email)
+    return email
+
+
+def queue_deposit_reversal_notice(deposit, actor: str | None) -> OutboxEmail:
+    """Tells the investor that a deposit they were already sent a confirmation
+    for has been reversed. The internal reversal reason is not included."""
+    investor = deposit.investor
+    balance = balance_as_of(investor.id)
+    body = (
+        f"Dear {investor.full_name},\n\n"
+        f"A deposit recorded on your {_company()} account has been reversed, so the confirmation "
+        "we sent you for it no longer applies.\n\n"
+        "REVERSED DEPOSIT\n\n"
+        f"• Amount: {fmt_kes(deposit.amount)}\n"
+        f"• Date received: {_fmt_date(deposit.value_date)}\n"
+        f"• Method: {METHOD_LABELS.get(deposit.method, deposit.method)}\n"
+        f"• Reference: {deposit.reference}\n"
+        f"• Account: {investor.client_code}\n\n"
+        f"Your account balance is now {fmt_kes(balance)}.\n\n"
+        f"{_sign_off()}"
+    )
+    email = OutboxEmail(
+        email_type=EMAIL_DEPOSIT_REVERSAL,
+        investor_id=investor.id,
+        deposit_id=deposit.id,
+        recipient_email=investor.email,
+        recipient_name=investor.full_name,
+        subject=f"Deposit reversed — {fmt_kes(deposit.amount)} ({deposit.reference})",
         body=body,
         created_by=actor,
     )

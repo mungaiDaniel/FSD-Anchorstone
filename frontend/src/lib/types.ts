@@ -217,7 +217,7 @@ export interface InterestPeriodDetail extends InterestPeriod {
 
 // ── Emails ──
 
-export type EmailType = "DEPOSIT_CONFIRMATION" | "WITHDRAWAL_CONFIRMATION" | "INTEREST_STATEMENT" | "ACCOUNT_STATEMENT" | "AUM_REPORT";
+export type EmailType = "DEPOSIT_CONFIRMATION" | "DEPOSIT_REVERSAL" | "WITHDRAWAL_CONFIRMATION" | "INTEREST_STATEMENT" | "ACCOUNT_STATEMENT" | "AUM_REPORT";
 
 /** Who to generate statements for: chosen ids, or everything matching the list's filter. */
 export type RecipientSelection =

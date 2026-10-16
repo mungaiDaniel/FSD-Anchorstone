@@ -5,7 +5,8 @@ Deposits
   - recorded by any staff member, posted immediately, confirmation emailed automatically
   - value date: not in the future, not inside an approved interest period
   - reference must be unique (stops the same receipt being entered twice)
-  - mistakes are reversed by an admin (with a reason), never edited or deleted
+  - mistakes are reversed by an admin (with a reason), never edited or deleted; if the
+    confirmation was already sent, the investor is sent a reversal notice
 
 Withdrawals (maker-checker)
   - staff records a request → pending; balance is NOT reduced yet
@@ -19,8 +20,19 @@ from decimal import Decimal
 from sqlalchemy import func
 
 from app.database.database import db
-from app.Emails.composer import queue_deposit_confirmation, queue_withdrawal_confirmation
-from app.Emails.model import STATUS_CANCELLED, STATUS_QUEUED, OutboxEmail
+from app.Emails.composer import (
+    queue_deposit_confirmation,
+    queue_deposit_reversal_notice,
+    queue_withdrawal_confirmation,
+)
+from app.Emails.model import (
+    EMAIL_DEPOSIT_CONFIRMATION,
+    STATUS_CANCELLED,
+    STATUS_QUEUED,
+    STATUS_SENDING,
+    STATUS_SENT,
+    OutboxEmail,
+)
 from app.Transactions.ledger import (
     assert_not_locked,
     balance_as_of,
@@ -137,14 +149,27 @@ def reverse_deposit(deposit_id: int, data: dict, actor: str) -> Deposit:
     deposit.reversed_at = utcnow()
     deposit.reversal_reason = reason
 
-    # If the confirmation email hasn't gone out yet, don't send it.
-    db.session.query(OutboxEmail).filter(
-        OutboxEmail.deposit_id == deposit.id, OutboxEmail.status == STATUS_QUEUED
-    ).update({"status": STATUS_CANCELLED, "last_error": "Deposit reversed before sending."})
+    # Locked so the sender can't claim it mid-decision (it skips locked rows).
+    confirmation = (
+        db.session.query(OutboxEmail)
+        .filter(OutboxEmail.deposit_id == deposit.id, OutboxEmail.email_type == EMAIL_DEPOSIT_CONFIRMATION)
+        .with_for_update()
+        .first()
+    )
+    notice = None
+    if confirmation is not None and confirmation.status == STATUS_QUEUED:
+        # Not sent yet: just don't send it.
+        confirmation.status = STATUS_CANCELLED
+        confirmation.last_error = "Deposit reversed before sending."
+    elif confirmation is not None and confirmation.status in (STATUS_SENT, STATUS_SENDING):
+        # The investor has (or is about to have) the confirmation: tell them it's void.
+        db.session.flush()
+        notice = queue_deposit_reversal_notice(deposit, actor)
 
     create_audit_log(
         "REVERSE_DEPOSIT", target_type="deposit", target_id=deposit.id,
-        target_name=deposit.investor.client_code, description=reason,
+        target_name=deposit.investor.client_code,
+        description=reason + ("; reversal notice queued to the investor" if notice else ""),
         old_value={"status": DEPOSIT_POSTED}, new_value={"status": DEPOSIT_REVERSED, "reason": reason},
     )
     db.session.commit()

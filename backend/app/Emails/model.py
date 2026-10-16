@@ -7,13 +7,14 @@ email_logs tables with one row per email that moves through:
                                left for an admin to retry or cancel)
     queued → cancelled
 
-Deposit and withdrawal confirmations are queued automatically. Interest
+Deposit and withdrawal confirmations are queued automatically, and so is a
+reversal notice when a deposit whose confirmation was already sent is reversed. Interest
 statements are queued when an admin approves the month's interest period.
 The unique constraints guarantee no transaction or payout is emailed twice.
 """
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, LargeBinary, String, Text, UniqueConstraint, text
 
 from app.database.database import db
 from base_model import Base
@@ -21,14 +22,16 @@ from app.utils.dates import iso
 
 EMAIL_DEPOSIT_CONFIRMATION = "DEPOSIT_CONFIRMATION"
 EMAIL_WITHDRAWAL_CONFIRMATION = "WITHDRAWAL_CONFIRMATION"
+# Sent when a deposit whose confirmation already went out is reversed.
+EMAIL_DEPOSIT_REVERSAL = "DEPOSIT_REVERSAL"
 EMAIL_INTEREST_STATEMENT = "INTEREST_STATEMENT"
 # On-demand "as of today" statement an admin generates for one or many investors.
 # Created as PENDING: an admin must confirm (send) or suppress it — see app/Emails/statements.py.
 EMAIL_ACCOUNT_STATEMENT = "ACCOUNT_STATEMENT"
 # Internal management email (not to an investor): monthly AUM summary — app/Reports/scheduled.py.
 EMAIL_AUM_REPORT = "AUM_REPORT"
-EMAIL_TYPES = (EMAIL_DEPOSIT_CONFIRMATION, EMAIL_WITHDRAWAL_CONFIRMATION, EMAIL_INTEREST_STATEMENT,
-               EMAIL_ACCOUNT_STATEMENT, EMAIL_AUM_REPORT)
+EMAIL_TYPES = (EMAIL_DEPOSIT_CONFIRMATION, EMAIL_DEPOSIT_REVERSAL, EMAIL_WITHDRAWAL_CONFIRMATION,
+               EMAIL_INTEREST_STATEMENT, EMAIL_ACCOUNT_STATEMENT, EMAIL_AUM_REPORT)
 
 STATUS_PENDING = "pending"      # awaiting an admin's confirm/suppress; never sent automatically
 STATUS_QUEUED = "queued"
@@ -56,6 +59,12 @@ class OutboxEmail(Base, db.Model):
         # One email per investor per admin-triggered send: a resubmitted request
         # (double click, network retry) carries the same send_key and adds nothing.
         UniqueConstraint("send_key", "investor_id", name="uq_email_outbox_send_key_investor"),
+        # A deposit reversal notice is sent at most once per deposit, and always names its deposit
+        # (a NULL deposit_id would slip past any unique index).
+        CheckConstraint("email_type <> 'DEPOSIT_REVERSAL' OR deposit_id IS NOT NULL",
+                        name="ck_email_outbox_reversal_has_deposit"),
+        Index("uq_email_outbox_deposit_reversal", "deposit_id", unique=True,
+              postgresql_where=text("email_type = 'DEPOSIT_REVERSAL'")),
         Index("ix_email_outbox_status_queued_at", "status", "queued_at"),
     )
 

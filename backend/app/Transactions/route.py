@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from sqlalchemy import or_
 
 from app.auth import actor_email, admin_required, staff_required
+from app.Emails.model import EMAIL_DEPOSIT_REVERSAL, OutboxEmail
 from app.Investors.model import Investor
 from app.Transactions import service
 from app.Transactions.model import Deposit, Withdrawal
@@ -54,7 +55,9 @@ def record_deposit():
 @admin_required
 def reverse_deposit(deposit_id):
     deposit = service.reverse_deposit(deposit_id, request.get_json(silent=True) or {}, actor_email())
-    return ok(deposit.to_dict(), "Deposit reversed.")
+    notified = OutboxEmail.query.filter_by(deposit_id=deposit.id, email_type=EMAIL_DEPOSIT_REVERSAL).first()
+    return ok(deposit.to_dict(), "Deposit reversed. A reversal notice has been queued to the investor."
+              if notified else "Deposit reversed.")
 
 
 # ── Withdrawals ──
