@@ -244,12 +244,15 @@ def calculate_period(data: dict, actor: str) -> InterestPeriod:
     period.status = PERIOD_DRAFT
     db.session.flush()
 
+    branch_of = dict(db.session.query(Investor.id, Investor.branch_id)
+                     .filter(Investor.id.in_([c.investor_id for c in calcs])).all()) if calcs else {}
     total_gross = total_tax = ZERO
     for c in calcs:
         tax = round_money(c.gross * tax_rate / HUNDRED)
         db.session.add(InterestPayout(
             period_id=period.id,
             investor_id=c.investor_id,
+            branch_id=branch_of[c.investor_id],
             days=c.days,
             opening_balance=c.opening_balance,
             closing_balance=c.closing_balance,

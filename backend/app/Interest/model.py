@@ -28,6 +28,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
+from app.Branches.model import CURRENCY, HEAD_OFFICE_ID
 from app.database.database import db
 from base_model import Base
 from app.utils.dates import iso
@@ -77,6 +78,7 @@ class InterestPeriod(Base, db.Model):
     __table_args__ = (
         CheckConstraint("status IN ('draft', 'approved', 'paid')", name="ck_interest_periods_status"),
         CheckConstraint("period_end >= period_start", name="ck_interest_periods_dates"),
+        CheckConstraint("currency = 'KES'", name="ck_interest_periods_currency_kes"),
     )
 
     id = Column(Integer, primary_key=True)
@@ -89,6 +91,7 @@ class InterestPeriod(Base, db.Model):
     tax_rate_percent = Column(Numeric(7, 4), nullable=False, default=0, server_default="0")
 
     investor_count = Column(Integer, nullable=False, default=0)
+    currency = Column(String(3), nullable=False, default=CURRENCY, server_default=CURRENCY)
     total_gross = Column(Numeric(20, 2), nullable=False, default=0)
     total_tax = Column(Numeric(20, 2), nullable=False, default=0)
     total_net = Column(Numeric(20, 2), nullable=False, default=0)
@@ -116,6 +119,7 @@ class InterestPeriod(Base, db.Model):
             "status": self.status,
             "tax_rate_percent": _rate_str(self.tax_rate_percent),
             "investor_count": self.investor_count,
+            "currency": self.currency,
             "total_gross": as_str(self.total_gross),
             "total_tax": as_str(self.total_tax),
             "total_net": as_str(self.total_net),
@@ -133,11 +137,16 @@ class InterestPayout(Base, db.Model):
         UniqueConstraint("period_id", "investor_id", name="uq_interest_payouts_period_investor"),
         CheckConstraint("status IN ('pending', 'paid')", name="ck_interest_payouts_status"),
         CheckConstraint("net_interest = gross_interest - tax_amount", name="ck_interest_payouts_net"),
+        CheckConstraint("currency = 'KES'", name="ck_interest_payouts_currency_kes"),
     )
 
     id = Column(Integer, primary_key=True)
     period_id = Column(Integer, ForeignKey("interest_periods.id", ondelete="CASCADE"), nullable=False, index=True)
     investor_id = Column(Integer, ForeignKey("investors.id", ondelete="RESTRICT"), nullable=False, index=True)
+
+    currency = Column(String(3), nullable=False, default=CURRENCY, server_default=CURRENCY)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True,
+                       default=HEAD_OFFICE_ID, server_default=str(HEAD_OFFICE_ID))
 
     days = Column(Integer, nullable=False)
     opening_balance = Column(Numeric(20, 2), nullable=False)
@@ -169,6 +178,8 @@ class InterestPayout(Base, db.Model):
             "investor_id": self.investor_id,
             "client_code": self.investor.client_code if self.investor else None,
             "investor_name": self.investor.full_name if self.investor else None,
+            "currency": self.currency,
+            "branch_id": self.branch_id,
             "days": self.days,
             "opening_balance": as_str(self.opening_balance),
             "closing_balance": as_str(self.closing_balance),

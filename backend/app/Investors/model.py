@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, Column, DateTime, Index, Integer, Sequence, String, Text, text
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, Sequence, String, Text, text
 
+from app.Branches.model import HEAD_OFFICE_ID
 from app.database.database import db
 from base_model import Base
 
@@ -38,6 +39,8 @@ class Investor(Base, db.Model):
     payout_account = Column(String(100), nullable=True)  # bank account no. or M-Pesa number
 
     status = Column(String(10), nullable=False, default="active", server_default="active")
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True,
+                       default=HEAD_OFFICE_ID, server_default=str(HEAD_OFFICE_ID))
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -57,6 +60,7 @@ class Investor(Base, db.Model):
             "bank_name": self.bank_name,
             "payout_account": self.payout_account,
             "status": self.status,
+            "branch_id": self.branch_id,
             "notes": self.notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "created_by": self.created_by,

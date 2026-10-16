@@ -32,6 +32,7 @@ def _import_models():
     # Registers every table on db.metadata (for Alembic and relationships).
     from app.Admin.model import AccountLockout, LoginAttempt, User  # noqa: F401
     from app.Backup.model import BackupLog  # noqa: F401
+    from app.Branches.model import Branch  # noqa: F401
     from app.Emails.model import EmailAttachment, OutboxEmail  # noqa: F401
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
     from app.Investors.model import Investor  # noqa: F401

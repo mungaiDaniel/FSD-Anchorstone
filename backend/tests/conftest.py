@@ -2,7 +2,8 @@
 Tests run against a real Postgres database (TEST_DATABASE_URI, default
 postgresql://localhost/anchorstone_test). The schema is built by running the
 actual Alembic migrations once per session, so the migrations are tested too;
-every test then starts from empty tables.
+every test then starts from empty tables, except the reference data the
+migrations seed (REFERENCE_TABLES), which is restored to its seeded state.
 
 WARNING: the test database is wiped. Never point TEST_DATABASE_URI at real data.
 """
@@ -32,6 +33,12 @@ _DATED_MODULES = (
     "app.Interest.statement",
 )
 
+# Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
+# They are snapshotted after upgrade() and restored before every test.
+REFERENCE_TABLES = (
+    "branches",
+)
+
 
 @pytest.fixture(scope="session")
 def app():
@@ -42,7 +49,26 @@ def app():
         db.session.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
         db.session.commit()
         upgrade()
+        missing = set(REFERENCE_TABLES) - {t.name for t in db.metadata.sorted_tables}
+        assert not missing, f"REFERENCE_TABLES not in the models: {missing}"
+        db.session.execute(text("DROP SCHEMA IF EXISTS seed_snapshot CASCADE; CREATE SCHEMA seed_snapshot;"))
+        for name in REFERENCE_TABLES:
+            db.session.execute(text(f'CREATE TABLE seed_snapshot."{name}" AS SELECT * FROM public."{name}"'))
+        db.session.commit()
     yield app
+
+
+def _restore_reference_data():
+    for table in db.metadata.sorted_tables:  # parents before children
+        if table.name not in REFERENCE_TABLES:
+            continue
+        db.session.execute(text(f'INSERT INTO "{table.name}" SELECT * FROM seed_snapshot."{table.name}"'))
+        for col in table.primary_key.columns:
+            seq = db.session.execute(text("SELECT pg_get_serial_sequence(:t, :c)"),
+                                     {"t": table.name, "c": col.name}).scalar()
+            if seq:
+                db.session.execute(text(f'SELECT setval(:s, COALESCE((SELECT max("{col.name}") FROM "{table.name}"), 0) + 1, false)'),
+                                   {"s": seq})
 
 
 @pytest.fixture(autouse=True)
@@ -51,6 +77,7 @@ def clean_db(app):
         tables = ", ".join(f'"{t.name}"' for t in db.metadata.sorted_tables)
         db.session.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
         db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
+        _restore_reference_data()
         db.session.commit()
         yield
         db.session.rollback()

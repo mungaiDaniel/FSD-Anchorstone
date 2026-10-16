@@ -102,6 +102,7 @@ def record_deposit(data: dict, actor: str) -> Deposit:
 
     deposit = Deposit(
         investor_id=investor.id,
+        branch_id=investor.branch_id,
         amount=amount,
         value_date=value_date,
         method=method,
@@ -203,6 +204,7 @@ def request_withdrawal(data: dict, actor: str) -> Withdrawal:
 
     withdrawal = Withdrawal(
         investor_id=investor.id,
+        branch_id=investor.branch_id,
         amount=amount,
         requested_date=requested_date,
         method=method,

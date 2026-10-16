@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import CheckConstraint, Column, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, text
 
+from app.Branches.model import CURRENCY, HEAD_OFFICE_ID
 from app.database.database import db
 from base_model import Base
 from app.utils.dates import iso
@@ -39,6 +40,7 @@ class Deposit(Base, db.Model):
         CheckConstraint(
             "method IN ('bank_transfer', 'mpesa', 'cheque', 'cash')", name="ck_deposits_method"
         ),
+        CheckConstraint("currency = 'KES'", name="ck_deposits_currency_kes"),
         Index("ix_deposits_investor_value_date", "investor_id", "value_date"),
         # The same receipt can't be recorded twice, whatever its letter case.
         Index("uq_deposits_reference_lower", text("lower(reference)"), unique=True),
@@ -47,6 +49,9 @@ class Deposit(Base, db.Model):
     id = Column(Integer, primary_key=True)
     investor_id = Column(Integer, ForeignKey("investors.id", ondelete="RESTRICT"), nullable=False)
     amount = Column(Numeric(20, 2), nullable=False)
+    currency = Column(String(3), nullable=False, default=CURRENCY, server_default=CURRENCY)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True,
+                       default=HEAD_OFFICE_ID, server_default=str(HEAD_OFFICE_ID))
     value_date = Column(Date, nullable=False)  # date the money was received
     method = Column(String(20), nullable=False)
     reference = Column(String(100), nullable=False)  # bank / M-Pesa / cheque reference
@@ -69,6 +74,8 @@ class Deposit(Base, db.Model):
             "client_code": self.investor.client_code if self.investor else None,
             "investor_name": self.investor.full_name if self.investor else None,
             "amount": as_str(self.amount),
+            "currency": self.currency,
+            "branch_id": self.branch_id,
             "value_date": iso(self.value_date),
             "method": self.method,
             "reference": self.reference,
@@ -99,6 +106,7 @@ class Withdrawal(Base, db.Model):
         CheckConstraint(
             "(status = 'approved') = (value_date IS NOT NULL)", name="ck_withdrawals_value_date_iff_approved"
         ),
+        CheckConstraint("currency = 'KES'", name="ck_withdrawals_currency_kes"),
         Index("ix_withdrawals_investor_value_date", "investor_id", "value_date"),
         Index("ix_withdrawals_status", "status"),
     )
@@ -106,6 +114,9 @@ class Withdrawal(Base, db.Model):
     id = Column(Integer, primary_key=True)
     investor_id = Column(Integer, ForeignKey("investors.id", ondelete="RESTRICT"), nullable=False)
     amount = Column(Numeric(20, 2), nullable=False)
+    currency = Column(String(3), nullable=False, default=CURRENCY, server_default=CURRENCY)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True,
+                       default=HEAD_OFFICE_ID, server_default=str(HEAD_OFFICE_ID))
     requested_date = Column(Date, nullable=False)  # date the investor asked
     method = Column(String(20), nullable=False)
     notes = Column(Text, nullable=True)
@@ -129,6 +140,8 @@ class Withdrawal(Base, db.Model):
             "client_code": self.investor.client_code if self.investor else None,
             "investor_name": self.investor.full_name if self.investor else None,
             "amount": as_str(self.amount),
+            "currency": self.currency,
+            "branch_id": self.branch_id,
             "requested_date": iso(self.requested_date),
             "method": self.method,
             "notes": self.notes,
