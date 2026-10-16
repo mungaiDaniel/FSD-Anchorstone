@@ -44,10 +44,14 @@ def test_changes_after_approval_do_not_change_the_issued_pdf(staff, admin1, admi
     inv, email = approve_september(admin1, admin2, make_investor, deposit, rate)
     stored = email.attachment.data
 
-    # The investor's details change after the statement was issued.
+    # The investor's details change after the statement was issued. Name and payout account are
+    # identity and bank details, so a second person approves the change first (KYC-08).
     res = staff.patch(f"/api/v1/investors/{inv['id']}", {"full_name": "Jane Wanjiru-Otieno",
                                                            "payout_account": "0799999999"})
     assert res.status_code == 200
+    [request] = staff.get("/api/v1/change-requests?mine=1").get_json()["data"]["items"]
+    request_id = request["id"]
+    assert admin1.post(f"/api/v1/change-requests/{request_id}/approve").status_code == 200
 
     # Generating now would give a different statement...
     live = pdf_text(generate_interest_statement_pdf(email.payout_id))

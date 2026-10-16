@@ -24,13 +24,17 @@ class TaskDef:
     queue: str
     max_attempts: int
     timeout_seconds: int  # a running job silent for longer is presumed dead and reclaimed
+    # A task that processes a client's personal data for a consent-based purpose (e.g. AI document
+    # reading) declares it; the job is refused at enqueue and at run without that client's consent.
+    consent_purpose: str | None = None
 
 
-def task(name: str, queue: str = "default", max_attempts: int = 3, timeout_seconds: int = 600):
+def task(name: str, queue: str = "default", max_attempts: int = 3, timeout_seconds: int = 600,
+         consent_purpose: str | None = None):
     def decorator(fn):
         if name in TASKS:
             raise TypeError(f"Duplicate task {name}")
-        TASKS[name] = TaskDef(name, fn, queue, max_attempts, timeout_seconds)
+        TASKS[name] = TaskDef(name, fn, queue, max_attempts, timeout_seconds, consent_purpose)
         return fn
     return decorator
 
@@ -63,6 +67,8 @@ PERIODIC = [
              enabled=lambda app: bool(app.config.get("DB_BACKUP_ENABLED")),
              args=lambda slot: {"triggered_by": "scheduled"}),
     Periodic("change_requests.expire", "change_requests.expire", "interval", lambda app: {"minutes": 60}),
+    # Daily at 02:00 Nairobi (23:00 UTC): existing clients against the watchlists.
+    Periodic("screening.rescreen", "screening.rescreen", "daily", lambda app: {"hour": 23, "minute": 0}),
 ]
 PERIODIC_BY_NAME = {p.name: p for p in PERIODIC}
 

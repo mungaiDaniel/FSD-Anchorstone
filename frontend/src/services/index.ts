@@ -5,6 +5,28 @@ import type {
   AuditLogEntry,
   BackupLogEntry,
   BackupStatus,
+  BusinessSetting,
+  BusinessSettingProposal,
+  ChangeRequest,
+  ChangeRequestStatus,
+  ConsentMethod,
+  ConsentPurpose,
+  DuplicateCheck,
+  KycStatus,
+  PartyConsent,
+  PartyDetail,
+  PartyDocument,
+  PartyEditResult,
+  PartyInput,
+  PartyListItem,
+  PartyMandate,
+  PartyOverview,
+  PartyRelationship,
+  PartyType,
+  PepInput,
+  ScreeningResult,
+  Watchlist,
+  WatchlistEntry,
   Deposit,
   EmailQueueSettingsData,
   EmailQueueStatus,
@@ -44,7 +66,7 @@ async function get<T>(url: string, params?: object): Promise<T> {
   return res.data.data as T;
 }
 
-async function send<T>(method: "post" | "patch" | "delete", url: string, body?: object): Promise<ApiResponse<T>> {
+async function send<T>(method: "post" | "patch" | "put" | "delete", url: string, body?: object): Promise<ApiResponse<T>> {
   const res =
     method === "delete" ? await api.delete<ApiResponse<T>>(url) : await api[method]<ApiResponse<T>>(url, body ?? {});
   return res.data;
@@ -227,4 +249,114 @@ export const settingsService = {
   getEmailQueueSettings: () => get<EmailQueueSettingsData>(API.SETTINGS_EMAIL_QUEUE),
   updateEmailQueueSettings: (batchSize: number, intervalMinutes: number) =>
     send("patch", API.SETTINGS_EMAIL_QUEUE, { batch_size: batchSize, interval_minutes: intervalMinutes }),
+  // Business rules: reading is direct; a change is a change request decided in the Approvals inbox.
+  getBusinessSettings: (source?: string) => get<BusinessSetting[]>(API.SETTINGS_BUSINESS, source ? { source } : undefined),
+  proposeBusinessSetting: (key: string, data: BusinessSettingProposal) =>
+    send<ChangeRequest>("post", API.SETTINGS_BUSINESS_KEY(key), data),
+};
+
+// ── Approvals (change requests) ──
+
+export interface ChangeRequestListParams {
+  page?: number;
+  per_page?: number;
+  /** Requests I made (any status). */
+  mine?: boolean;
+  /** Every request in this status. Without mine/status: what I may decide now. */
+  status?: ChangeRequestStatus;
+}
+
+export const approvalService = {
+  list: ({ mine, ...params }: ChangeRequestListParams) =>
+    get<Paginated<ChangeRequest>>(API.CHANGE_REQUESTS, { ...params, ...(mine ? { mine: 1 } : {}) }),
+  get: (id: number) => get<ChangeRequest>(API.CHANGE_REQUEST(id)),
+  approve: (id: number, comment?: string) => send<ChangeRequest>("post", API.CHANGE_REQUEST_APPROVE(id), { comment }),
+  reject: (id: number, reason: string) => send<ChangeRequest>("post", API.CHANGE_REQUEST_REJECT(id), { reason }),
+  returnForCorrection: (id: number, reason: string) =>
+    send<ChangeRequest>("post", API.CHANGE_REQUEST_RETURN(id), { reason }),
+  resubmit: (id: number, payload: Record<string, unknown>, reason?: string) =>
+    send<ChangeRequest>("post", API.CHANGE_REQUEST_RESUBMIT(id), { payload, reason }),
+  cancel: (id: number) => send<ChangeRequest>("post", API.CHANGE_REQUEST_CANCEL(id)),
+};
+
+// ── Clients (parties) ──
+
+export interface PartyListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  type?: PartyType;
+  kyc_status?: KycStatus;
+  role?: string;
+}
+
+export interface RelationshipInput {
+  relationship: string;
+  related_party_id?: number;
+  related?: PartyInput;
+  kin_relationship?: string;
+  share_pct?: string;
+  signatory_list?: "A" | "B";
+  committed_amount?: string;
+}
+
+export const partyService = {
+  list: (params: PartyListParams) => get<Paginated<PartyListItem>>(API.PARTIES, params),
+  get: (id: number) => get<PartyDetail>(API.PARTY(id)),
+  overview: (id: number) => get<PartyOverview>(API.PARTY_OVERVIEW(id)),
+  create: (data: PartyInput) => send<PartyDetail>("post", API.PARTIES, data),
+  /** Direct fields save; identity, bank and payout changes come back as a change request. */
+  update: (id: number, data: PartyInput) => send<PartyEditResult>("patch", API.PARTY(id), data),
+  checkDuplicates: (data: PartyInput & { exclude_party_id?: number }) =>
+    send<DuplicateCheck>("post", API.PARTY_CHECK_DUPLICATES, data).then((r) => r.data as DuplicateCheck),
+  addRelationship: (id: number, data: RelationshipInput) =>
+    send<PartyRelationship>("post", API.PARTY_RELATIONSHIPS(id), data),
+  endRelationship: (id: number, relationshipId: number) =>
+    send<PartyRelationship>("post", API.PARTY_RELATIONSHIP_END(id, relationshipId)),
+  setMandate: (id: number, rule: string, description?: string) =>
+    send<PartyMandate>("put", API.PARTY_MANDATE(id), { rule, description }),
+  requestVerification: (id: number, reason?: string) => send<ChangeRequest>("post", API.PARTY_VERIFY(id), { reason }),
+  setPep: (id: number, data: PepInput) => send<ChangeRequest>("put", API.PARTY_PEP(id), data),
+  openInvestment: (id: number, email?: string) =>
+    send<{ id: number; client_code: string }>("post", API.PARTY_INVESTOR(id), { email }),
+  documents: (id: number) => get<PartyDocument[]>(API.PARTY_DOCUMENTS(id)),
+  async uploadDocument(id: number, file: File, documentType: string) {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("document_type", documentType);
+    const res = await api.post<ApiResponse<PartyDocument>>(API.PARTY_DOCUMENTS(id), form, {
+      headers: { "Content-Type": "multipart/form-data" }, timeout: 120000,
+    });
+    return res.data;
+  },
+  /** Fetched with the auth header and opened locally; the server logs the read. */
+  openDocument: (doc: PartyDocument) => openBlob(API.DOCUMENT_CONTENT(doc.id), doc.filename, doc.content_type),
+  consents: (id: number) => get<PartyConsent[]>(API.PARTY_CONSENTS(id)),
+  recordConsent: (id: number, data: { purpose: ConsentPurpose; method: ConsentMethod; granted_on?: string;
+    evidence_document_id?: string }) => send<PartyConsent>("post", API.PARTY_CONSENTS(id), data),
+  withdrawConsent: (id: number, consentId: number, note?: string) =>
+    send<PartyConsent>("post", API.PARTY_CONSENT_WITHDRAW(id, consentId), { note }),
+  /** Merge this duplicate into survivorId (party.merge, approved by someone else). */
+  merge: (id: number, survivorId: number, reason: string) =>
+    send<ChangeRequest>("post", API.PARTY_MERGE(id), { survivor_id: survivorId, reason }),
+  transfer: (id: number, toBranchId: number, reason: string) =>
+    send<ChangeRequest>("post", API.PARTY_TRANSFER(id), { to_branch_id: toBranchId, reason }),
+  branches: () => get<{ id: number; code: string; name: string; status: string }[]>(API.BRANCHES),
+  investorParty: (investorId: number) =>
+    get<{ party_id: number; party_no: string; account_id: number }>(API.INVESTOR_PARTY(investorId)),
+};
+
+export const screeningService = {
+  queue: (params: { review_status?: string; page?: number; per_page?: number }) =>
+    get<Paginated<ScreeningResult>>(API.SCREENING_RESULTS, params),
+  review: (id: number, decision: "clear" | "confirmed", note: string) =>
+    send<ScreeningResult>("post", API.SCREENING_REVIEW(id), { decision, note }),
+};
+
+export const watchlistService = {
+  list: (params: { list?: Watchlist; search?: string; page?: number; per_page?: number }) =>
+    get<Paginated<WatchlistEntry>>(API.WATCHLIST, params),
+  add: (data: { list: Watchlist; full_name: string; reason: string; source?: string;
+    identifiers?: { id_type: string; value: string }[] }) => send<WatchlistEntry>("post", API.WATCHLIST, data),
+  remove: (id: number, reason: string) => send<ChangeRequest>("post", API.WATCHLIST_REMOVE(id), { reason }),
 };

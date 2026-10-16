@@ -43,6 +43,10 @@ def _import_models():
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
     from app.Investors.model import Investor  # noqa: F401
     from app.Jobs.model import Job, PeriodicTask  # noqa: F401
+    from app.Parties.model import (  # noqa: F401
+        Account, Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
+        PartyConsent, PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, ScreeningResult, WatchlistEntry,
+    )
     from app.Reports.model import ReportSchedule  # noqa: F401
     from app.Settings.model import EmailSettings, SettingVersion  # noqa: F401
     from app.Transactions.model import Deposit, Withdrawal  # noqa: F401
@@ -97,13 +101,14 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.Emails.route import emails_v1
     from app.Interest.route import interest_v1
     from app.Investors.route import investors_v1
+    from app.Parties.route import parties_v1
     from app.Reports.route import reports_v1
     from app.Settings.route import settings_v1
     from app.Stats.route import stats_v1
     from app.Transactions.route import transactions_v1
 
     for bp in (user_v1, investors_v1, transactions_v1, interest_v1, emails_v1, stats_v1,
-               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1):
+               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1, parties_v1):
         app.register_blueprint(bp)
     load_handlers()
     from app.Jobs.registry import load_tasks
@@ -150,6 +155,20 @@ def _register_cli(app: Flask) -> None:
         """Run background jobs: email sending, scheduled reports, backups, expiries."""
         from app.Jobs.worker import run_worker
         run_worker(app, [q.strip() for q in queues.split(",") if q.strip()] or None, poll)
+
+    @app.cli.command("kyc-preflight")
+    def kyc_preflight():
+        """Read-only: list investors that would block or need review before moving onto parties."""
+        from sqlalchemy import text
+
+        from app.Parties.preflight import format_report, investor_preflight
+
+        rows = db.session.execute(text(
+            "SELECT id, client_code, full_name, id_number, kra_pin, phone FROM investors ORDER BY id")).all()
+        report = investor_preflight(rows)
+        click.echo(format_report(report))
+        if report["blocking"]:
+            raise SystemExit(1)
 
     @app.cli.command("create-superadmin")
     @click.option("--name", prompt=True)

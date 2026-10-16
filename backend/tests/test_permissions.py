@@ -89,6 +89,22 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/documents"), ("GET", "/api/v1/documents/<uuid:document_id>"),
     ("GET", "/api/v1/documents/<uuid:document_id>/content"),
     ("POST", "/api/v1/documents/<uuid:document_id>/destroy"),
+    # Phase 2b: clients (parties)
+    ("GET", "/api/v1/parties"), ("POST", "/api/v1/parties"), ("GET", "/api/v1/parties/<int:party_id>"),
+    ("PATCH", "/api/v1/parties/<int:party_id>"), ("GET", "/api/v1/parties/<int:party_id>/overview"),
+    ("GET", "/api/v1/investors/<int:investor_id>/party"),
+    ("POST", "/api/v1/parties/<int:party_id>/relationships"),
+    ("POST", "/api/v1/parties/<int:party_id>/relationships/<int:relationship_id>/end"),
+    ("PUT", "/api/v1/parties/<int:party_id>/mandate"), ("POST", "/api/v1/parties/<int:party_id>/verify"),
+    ("POST", "/api/v1/parties/<int:party_id>/investor"), ("POST", "/api/v1/parties/check-duplicates"),
+    ("PUT", "/api/v1/parties/<int:party_id>/pep"), ("GET", "/api/v1/parties/<int:party_id>/screening"),
+    ("GET", "/api/v1/screening-results"), ("POST", "/api/v1/screening-results/<int:result_id>/review"),
+    ("GET", "/api/v1/parties/<int:party_id>/documents"), ("POST", "/api/v1/parties/<int:party_id>/documents"),
+    ("GET", "/api/v1/parties/<int:party_id>/consents"), ("POST", "/api/v1/parties/<int:party_id>/consents"),
+    ("POST", "/api/v1/parties/<int:party_id>/consents/<int:consent_id>/withdraw"),
+    ("POST", "/api/v1/parties/<int:party_id>/merge"), ("POST", "/api/v1/parties/<int:party_id>/transfer"),
+    ("GET", "/api/v1/branches"),
+    ("GET", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist/<int:entry_id>/remove"),
 }
 
 

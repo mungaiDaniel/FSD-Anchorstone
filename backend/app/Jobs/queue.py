@@ -23,7 +23,7 @@ from app.database.database import db
 from app.Jobs.model import JOB_FAILED, JOB_QUEUED, JOB_RUNNING, JOB_SUCCEEDED, Job
 from app.Jobs.registry import TASKS
 from app.utils.dates import utcnow
-from app.utils.http import ValidationError
+from app.utils.http import Forbidden, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +32,28 @@ BACKOFF_BASE_SECONDS = 30
 BACKOFF_MAX_SECONDS = 3600
 
 
+def assert_consent(task, args: dict) -> None:
+    """A consent-based task runs only for a client with that consent on file (05 §9.1: no consent, no AI)."""
+    if not task.consent_purpose:
+        return
+    from app.Parties.consent import PURPOSE_LABELS, has_consent
+
+    party_id = args.get("party_id")
+    if not isinstance(party_id, int) or isinstance(party_id, bool):
+        raise ValidationError(f"{task.name} needs the client (party_id) it processes.")
+    if not has_consent(party_id, task.consent_purpose):
+        label = PURPOSE_LABELS.get(task.consent_purpose, task.consent_purpose)
+        raise Forbidden(f"The client hasn't consented to {label}. Record the consent first, or capture the "
+                        "details by hand.")
+
+
 def enqueue(name: str, args: dict | None = None, *, run_at: datetime | None = None, dedupe_key: str | None = None,
             priority: int = 0, enqueued_by: str = "system") -> int | None:
     """Add a job to the current transaction. Returns its id, or None if dedupe_key already exists."""
     task = TASKS.get(name)
     if task is None:
         raise ValidationError(f"Unknown job: {name}.")
+    assert_consent(task, args or {})
     stmt = insert(Job.__table__).values(
         name=name, queue=task.queue, args=args or {}, status=JOB_QUEUED, priority=priority,
         run_at=run_at or utcnow(), attempts=0, max_attempts=task.max_attempts, dedupe_key=dedupe_key,
@@ -96,6 +112,7 @@ def run(job_id: int, worker_id: str, app=None) -> str:
     try:
         if task is None:
             raise RuntimeError(f"No task registered for {job.name}")
+        assert_consent(task, job.args or {})  # consent may have been withdrawn since it was queued
         result = task.fn(dict(job.args or {}))
         db.session.commit()  # whatever the task left uncommitted
         status, error = JOB_SUCCEEDED, None

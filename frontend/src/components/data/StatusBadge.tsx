@@ -5,9 +5,11 @@ const TONES: Record<string, Tone> = {
   posted: "positive",
   approved: "positive",
   paid: "positive",
+  applied: "positive",
   sent: "positive",
   pending: "waiting",
   draft: "waiting",
+  returned: "waiting",
   queued: "neutral",
   sending: "neutral",
   closed: "negative",
@@ -16,6 +18,7 @@ const TONES: Record<string, Tone> = {
   rejected: "negative",
   failed: "negative",
   cancelled: "negative",
+  expired: "negative",
 };
 
 export function StatusBadge({ status, label, className }: { status: string; label?: string; className?: string }) {

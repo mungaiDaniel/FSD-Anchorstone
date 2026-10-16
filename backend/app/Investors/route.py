@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 
-from app.auth import actor_email, requires
+from app.auth import actor_email, current_user, requires
 from app.Emails.model import OutboxEmail
 from app.Interest.model import LOCKED_PERIOD_STATUSES, InterestPayout, InterestPeriod
 from app.Investors import service
@@ -36,8 +36,10 @@ def get_investor(investor_id):
 @investors_v1.patch("/api/v1/investors/<int:investor_id>")
 @requires("investor.edit")
 def update_investor(investor_id):
-    investor = service.update_investor(investor_id, request.get_json(silent=True) or {}, actor_email())
-    return ok(service.investor_summary(investor), "Investor updated.")
+    investor, cr = service.update_investor(investor_id, request.get_json(silent=True) or {}, current_user())
+    message = "Investor updated." if cr is None else (
+        f"Saved. The identity, bank or payout changes need a second person's approval (request #{cr.id}).")
+    return ok(service.investor_summary(investor), message)
 
 
 @investors_v1.patch("/api/v1/investors/<int:investor_id>/status")
@@ -99,3 +101,15 @@ def investor_emails(investor_id):
     rows = OutboxEmail.query.filter(OutboxEmail.investor_id == investor_id).order_by(
         OutboxEmail.queued_at.desc()).limit(200).all()
     return ok([e.to_dict() for e in rows])
+
+
+@investors_v1.get("/api/v1/investors/<int:investor_id>/party")
+@requires("investor.view")
+def investor_party(investor_id):
+    """The client record behind an investor (kept out of the investor response, which is unchanged)."""
+    from app.Parties.model import Party
+    from app.database.database import db
+
+    investor = service.get_investor(investor_id)
+    party = db.session.get(Party, investor.party_id)
+    return ok({"party_id": party.id, "party_no": party.party_no, "account_id": investor.account_id})

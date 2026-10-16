@@ -9,6 +9,7 @@ app.Settings.business.get().
 
 Adding a key is a code change plus a migration that seeds its version 1.
 """
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
@@ -28,7 +29,7 @@ SOURCES = ("working_assumption", "client_confirmed", "internal_decision")
 @dataclass(frozen=True)
 class SettingDefinition:
     key: str
-    type: str                      # int / decimal / bool / enum / list / json
+    type: str                      # int / decimal / bool / enum / list / json / text
     default: Any                   # JSON-compatible (decimals as strings)
     validator: Callable[[Any], Any]
     binding: str
@@ -87,6 +88,16 @@ def one_of(*choices):
     return check
 
 
+def label(max_len: int):
+    """A short identifier such as a notice version (letters, digits, dot, dash, underscore)."""
+    def check(value):
+        text = str(value or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", text) or len(text) > max_len:
+            raise ValidationError(f"must be a label of up to {max_len} letters, digits, dots or dashes.")
+        return text
+    return check
+
+
 def int_list(lo: int, hi: int):
     def check(value):
         if not isinstance(value, list) or not value:
@@ -105,6 +116,12 @@ def subset_of(*choices):
 
 
 MIME_TYPES = ("application/pdf", "image/jpeg", "image/png", "image/heic", "image/tiff")
+# Compulsory KYC details (07 Q-C1); the names are checked in app/Parties/service.py missing_fields().
+PERSON_REQUIRED_FIELDS = ("name", "id_document", "kra_pin", "date_of_birth", "mobile", "physical_address",
+                          "next_of_kin")
+WATCHLISTS = ("internal_blacklist", "pep", "sanctions_un")  # app/Parties/model.py WATCHLISTS
+ORGANISATION_REQUIRED_FIELDS = ("legal_name", "registration_no", "kra_pin", "registration_date",
+                                "director_with_id", "phone", "physical_address")
 
 DEFINITIONS = [
     # ── Security (FSD SEC-02, 07 Q-IT5). Two approvers for any change. ──
@@ -159,7 +176,24 @@ DEFINITIONS = [
     SettingDefinition("kyc.maker_checker_fields", "list", ["bank", "identity", "payout"],
                       subset_of("identity", "bank", "payout", "email", "phone", "address"), IMMEDIATE, "compliance",
                       "Investor / party details whose changes need a second person's approval. Other contact "
-                      "changes save immediately and are audited.", wa_ref="WA-01", questionnaire_ref="B4"),
+                      "changes save immediately and are audited.", in_use=True, wa_ref="WA-01",
+                      questionnaire_ref="B4"),
+    SettingDefinition("kyc.required_fields.person", "list", sorted(PERSON_REQUIRED_FIELDS),
+                      subset_of(*PERSON_REQUIRED_FIELDS), IMMEDIATE, "compliance",
+                      "Details an individual must have before KYC can be verified.", in_use=True,
+                      wa_ref="07 Q-C1", questionnaire_ref="C8"),
+    SettingDefinition("kyc.required_fields.organisation", "list", sorted(ORGANISATION_REQUIRED_FIELDS),
+                      subset_of(*ORGANISATION_REQUIRED_FIELDS), IMMEDIATE, "compliance",
+                      "Details an organisation must have before KYC can be verified.", in_use=True,
+                      wa_ref="07 Q-C1", questionnaire_ref="C9"),
+    SettingDefinition("consent.notice_version", "text", "v1", label(30), IMMEDIATE, "compliance",
+                      "Version of the privacy notice shown to clients; stored with every consent recorded.",
+                      in_use=True, wa_ref="07 Q-CO1", questionnaire_ref="G3"),
+    SettingDefinition("screening.lists_enabled", "list", ["internal_blacklist", "pep"],
+                      subset_of(*WATCHLISTS), IMMEDIATE, "compliance",
+                      "Watchlists every client is screened against at onboarding, on identity changes and daily. "
+                      "The UN sanctions list is added once its import is built.", in_use=True,
+                      wa_ref="07 Q-CO6 / FSD KYC-06", questionnaire_ref="G6"),
     SettingDefinition("retention.documents_years_after_end", "int", 7, int_between(1, 30), EVENT_DATE, "compliance",
                       "Years documents are kept after the relationship ends (including declined applicants).",
                       wa_ref="WA-12", questionnaire_ref="G5"),

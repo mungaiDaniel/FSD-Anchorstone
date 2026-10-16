@@ -73,6 +73,13 @@ def change_requests_expire(args: dict):
     return {"expired": expire_due()}
 
 
+@task("screening.rescreen", queue="default", timeout_seconds=3600)
+def screening_rescreen(args: dict):
+    """Re-screen every active client against the watchlists (FSD KYC-06: new and existing clients)."""
+    from app.Parties.screening import rescreen_all
+    return rescreen_all("scheduler")
+
+
 @task("test.noop", queue="default")
 def noop(args: dict):
     """Does nothing; used to check a worker is alive (and by tests)."""

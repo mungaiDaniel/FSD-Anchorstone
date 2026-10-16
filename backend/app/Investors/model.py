@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, Sequence, String, Text, text
+from sqlalchemy import (
+    CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, Sequence, String, Text, UniqueConstraint, text,
+)
 
 from app.Branches.model import HEAD_OFFICE_ID
 from app.database.database import db
@@ -23,6 +25,8 @@ class Investor(Base, db.Model):
         CheckConstraint("payout_method IS NULL OR payout_method IN ('bank', 'mpesa')", name="ck_investors_payout_method"),
         # One account per person: email is the identity for statements.
         Index("uq_investors_email_lower", text("lower(email)"), unique=True),
+        UniqueConstraint("party_id", name="uq_investors_party_id"),
+        UniqueConstraint("account_id", name="uq_investors_account_id"),
     )
 
     id = Column(Integer, primary_key=True)
@@ -42,6 +46,12 @@ class Investor(Base, db.Model):
     branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True,
                        default=HEAD_OFFICE_ID, server_default=str(HEAD_OFFICE_ID))
     notes = Column(Text, nullable=True)
+    # The investor's party and investment account (phase 2b). The name, phone, ID, PIN and payout
+    # columns above mirror the party, kept in step by the service, so statements and reports read
+    # them unchanged; email stays here for good as the statement address (one investor per email).
+    party_id = Column(Integer, ForeignKey("parties.id", ondelete="RESTRICT", name="fk_investors_party_id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT", name="fk_investors_account_id"),
+                        nullable=False)
 
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     created_by = Column(String(120), nullable=False)

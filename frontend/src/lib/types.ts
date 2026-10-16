@@ -370,3 +370,426 @@ export interface EmailQueueSettingsData {
   interval_minutes: number;
   next_run_at: string | null;
 }
+
+// ── Approvals (change requests, app/Approvals) ──
+
+export type ChangeRequestStatus = "pending" | "returned" | "applied" | "rejected" | "cancelled" | "expired" | "failed";
+export type ChangeRequestAction =
+  | "submit" | "approve" | "reject" | "return" | "resubmit" | "cancel" | "apply" | "expire" | "fail";
+
+export interface ApprovalLevel {
+  permission: string;
+  count?: number;
+}
+
+export interface ChangeRequestEvent {
+  id: number;
+  round: number;
+  action: ChangeRequestAction;
+  level: number | null;
+  actor_email: string;
+  comment: string | null;
+  at: string;
+}
+
+export interface ChangeRequest {
+  id: number;
+  request_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: Record<string, unknown>;
+  summary: string | null;
+  amount: string | null;
+  currency: "KES";
+  branch_id: number | null;
+  status: ChangeRequestStatus;
+  reason: string | null;
+  maker_email: string;
+  submitted_at: string;
+  expires_at: string;
+  decided_at: string | null;
+  applied_at: string | null;
+  levels_required: number;
+  levels_done: number;
+  round: number;
+  levels: ApprovalLevel[] | null;
+  result: unknown;
+  error: string | null;
+  /** Whether the server would let me decide it now. Cosmetic: the server re-checks. */
+  can_decide?: boolean;
+  events?: ChangeRequestEvent[];
+}
+
+// ── Business-rule settings (app/Settings/registry.py, business.overview) ──
+
+export type SettingSource = "working_assumption" | "client_confirmed" | "internal_decision";
+export type SettingType = "int" | "decimal" | "bool" | "enum" | "list" | "json" | "text";
+
+/** A setting value as JSON: decimals arrive as strings. */
+export type SettingValue = string | number | boolean | null | SettingValue[] | { [k: string]: SettingValue };
+
+export interface SettingVersion {
+  id: number;
+  key: string;
+  scope_type: "global" | "branch" | "product";
+  scope_id: number | null;
+  value: SettingValue;
+  effective_from: string;
+  version_no: number;
+  source: SettingSource;
+  evidence: string | null;
+  reason: string | null;
+  change_request_id: number | null;
+  created_by: string;
+  approved_by: string;
+  approved_at: string | null;
+}
+
+export interface BusinessSetting {
+  key: string;
+  category: string;
+  type: SettingType;
+  description: string;
+  binding: "immediate" | "event_date" | "at_booking" | "new_versions_only";
+  scopes: string[];
+  approvals_required: number;
+  in_use: boolean;
+  wa_ref: string | null;
+  questionnaire_ref: string | null;
+  choices: string[];
+  default: SettingValue;
+  value: SettingValue;
+  /** null only before the key is seeded (the registry default is shown). */
+  source: SettingSource | null;
+  effective_from: string | null;
+  history: SettingVersion[];
+}
+
+export interface BusinessSettingProposal {
+  value: SettingValue;
+  effective_from: string;
+  source: SettingSource;
+  evidence?: string;
+  reason: string;
+}
+
+// ── Clients (parties, app/Parties) ──
+
+export type PartyType = "person" | "organisation";
+export type KycStatus = "incomplete" | "pending_review" | "verified";
+export type PartyStatus = "active" | "blacklisted" | "merged";
+export type PartyRoleName =
+  | "investor" | "borrower" | "guarantor" | "director" | "shareholder" | "signatory" | "agent" | "next_of_kin";
+export type RelationshipKind =
+  | "director" | "shareholder" | "signatory" | "next_of_kin" | "guarantor_of" | "related_party" | "referred_by";
+export type IdType = "national_id" | "passport" | "alien_id" | "kra_pin" | "company_reg_no";
+export type ContactKind = "email" | "mobile" | "phone";
+export type AddressKind = "home" | "business" | "postal" | "registered";
+export type OrgType =
+  | "sme" | "corporate" | "cooperative" | "ngo" | "investment_group" | "public_institution" | "sacco" | "church"
+  | "fund_manager" | "insurer";
+export type ConsentPurpose = "kyc_processing" | "ai_document_processing" | "credit_bureau_check" | "marketing";
+export type ConsentMethod = "signed_form" | "in_branch" | "email";
+export type Watchlist = "internal_blacklist" | "pep" | "sanctions_un";
+
+export interface PartySummary {
+  id: number;
+  party_no: string;
+  party_type: PartyType;
+  display_name: string;
+  kyc_status: KycStatus;
+  status: PartyStatus;
+  is_pep: boolean;
+}
+
+export interface PartyListItem extends PartySummary {
+  home_branch_id: number;
+  roles: PartyRoleName[];
+  email: string | null;
+  phone: string | null;
+}
+
+export interface PartyPersonDetails {
+  salutation: string | null;
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  gender: "male" | "female" | "other" | null;
+  date_of_birth: string | null;
+  marital_status: "single" | "married" | "divorced" | "widowed" | "other" | null;
+  nationality: string;
+  residency: "local" | "foreign";
+  sector: string | null;
+  nature_of_business: string | null;
+  employer_name: string | null;
+  employer_party_id: number | null;
+  name_needs_review: boolean;
+}
+
+export interface PartyOrganisationDetails {
+  legal_name: string;
+  trading_name: string | null;
+  registration_date: string | null;
+  org_type: OrgType;
+  sector: string | null;
+  nature_of_business: string | null;
+}
+
+export interface PartyIdentifier {
+  id: number;
+  id_type: IdType;
+  issuing_country: string;
+  value: string;
+  issued_on: string | null;
+  expires_on: string | null;
+}
+
+export interface PartyContact {
+  id: number;
+  kind: ContactKind;
+  value: string;
+  is_primary: boolean;
+  needs_review: boolean;
+}
+
+export interface PartyAddress {
+  id: number;
+  kind: AddressKind;
+  line1: string;
+  line2: string | null;
+  town: string | null;
+  county: string | null;
+  country: string;
+}
+
+export interface PartyBankAccount {
+  id: number;
+  kind: "bank" | "mpesa";
+  bank_name: string | null;
+  branch_name: string | null;
+  account_no: string;
+  account_name: string | null;
+  is_default_payout: boolean;
+  status: "active" | "ended";
+}
+
+export interface PartyRoleRow {
+  id: number;
+  role: PartyRoleName;
+  status: "active" | "ended";
+  started_on: string;
+  ended_on: string | null;
+}
+
+export interface PartyRelationship {
+  id: number;
+  from_party_id: number;
+  to_party_id: number;
+  relationship: RelationshipKind;
+  share_pct: string | null;
+  kin_relationship: string | null;
+  signatory_list: "A" | "B" | null;
+  committed_amount: string | null;
+  status: "active" | "ended";
+  started_on: string;
+  ended_on: string | null;
+  /** incoming: the other party relates to this one (a director, next of kin); outgoing: this one relates to it. */
+  direction: "incoming" | "outgoing";
+  party: PartySummary;
+}
+
+export interface PartyPep {
+  position_held: string;
+  country: string;
+  since: string | null;
+  until: string | null;
+  pep_relationship: "self" | "family_member" | "close_associate";
+  related_pep_name: string | null;
+  source_of_funds: string;
+  source_of_wealth: string;
+  status: "pending" | "approved" | "cleared";
+  recorded_by: string;
+  approved_at: string | null;
+  approved_by: string | null;
+}
+
+export interface ScreeningMatch {
+  entry_id: number;
+  list: Watchlist;
+  name: string;
+  matched_on: ("name" | "identifier")[];
+}
+
+export interface ScreeningResult {
+  id: number;
+  party_id: number;
+  trigger: "onboarding" | "identity_change" | "watchlist_change" | "rescreen";
+  lists: string[];
+  matches: ScreeningMatch[];
+  outcome: "clear" | "potential_match";
+  review_status: "not_required" | "pending" | "cleared" | "confirmed";
+  maker_email: string;
+  screened_by: string;
+  screened_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  party?: PartySummary;
+}
+
+export interface PartyMandate {
+  id: number;
+  rule: "any_one" | "all" | "a_and_b" | "custom";
+  description: string | null;
+  effective_from: string;
+}
+
+export interface PartyDetail extends PartySummary {
+  home_branch_id: number;
+  classification: string | null;
+  risk_rating: "low" | "medium" | "high" | null;
+  merged_into_party_id: number | null;
+  relationship_officer_user_id: number | null;
+  notes: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  created_at: string;
+  created_by: string;
+  person: PartyPersonDetails | null;
+  organisation: PartyOrganisationDetails | null;
+  identifiers: PartyIdentifier[];
+  contacts: PartyContact[];
+  addresses: PartyAddress[];
+  bank_accounts: PartyBankAccount[];
+  roles: PartyRoleRow[];
+  relationships: PartyRelationship[];
+  mandate: PartyMandate | null;
+  missing_fields: string[];
+  verification_blockers: string[];
+  pep: PartyPep | null;
+  screening: { last: ScreeningResult | null; pending: number };
+  /** Only in the create response. */
+  warnings?: DuplicateWarning[];
+}
+
+export interface PartyAccount {
+  id: number;
+  account_no: string;
+  account_type: "investment";
+  party_id: number;
+  branch_id: number;
+  currency: "KES";
+  status: "active" | "closed";
+  opened_on: string;
+  closed_on: string | null;
+  investor_id?: number;
+  statement_email?: string;
+  balance?: string;
+  pending_withdrawals?: string;
+  interest_paid?: string;
+}
+
+export interface PartyDocument {
+  id: string;
+  document_type: string;
+  label: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  sensitive: boolean;
+  status: "active" | "destroyed";
+  uploaded_by: string;
+  uploaded_at: string;
+  current: boolean;
+}
+
+export interface PartyConsent {
+  id: number;
+  party_id: number;
+  purpose: ConsentPurpose;
+  granted_on: string;
+  method: ConsentMethod;
+  notice_version: string;
+  evidence_document_id: string | null;
+  captured_by: string;
+  captured_at: string;
+  status: "active" | "withdrawn";
+  withdrawn_at: string | null;
+  withdrawn_by: string | null;
+  withdrawal_note: string | null;
+}
+
+export interface PartyOverview extends PartyDetail {
+  accounts: PartyAccount[];
+  loans: unknown[];
+  guarantees: PartyRelationship[];
+  directorships: PartyRelationship[];
+  documents: PartyDocument[];
+  consents: PartyConsent[];
+  screening_results: ScreeningResult[];
+  pending_changes: ChangeRequest[];
+  merged_into: PartySummary | null;
+}
+
+export interface DuplicateWarning {
+  kind: ContactKind;
+  value: string;
+  party: PartySummary;
+  message: string;
+}
+
+export interface DuplicateCheck {
+  conflicts: { id_type: IdType; value: string; message: string; party: PartySummary | null }[];
+  warnings: DuplicateWarning[];
+}
+
+export interface PepInput {
+  is_pep: boolean;
+  position_held?: string;
+  country?: string;
+  since?: string | null;
+  until?: string | null;
+  pep_relationship?: PartyPep["pep_relationship"];
+  related_pep_name?: string | null;
+  source_of_funds?: string;
+  source_of_wealth?: string;
+  reason?: string;
+}
+
+/** The body for creating or editing a client: raw values, which the server cleans and checks. */
+export interface PartyInput {
+  party_type?: PartyType;
+  classification?: string | null;
+  risk_rating?: "low" | "medium" | "high" | null;
+  notes?: string | null;
+  person?: Partial<Omit<PartyPersonDetails, "employer_party_id" | "name_needs_review">>;
+  organisation?: Partial<PartyOrganisationDetails>;
+  identifiers?: { id_type: IdType; value: string }[];
+  contacts?: { kind: ContactKind; value: string; is_primary?: boolean }[];
+  addresses?: { kind: AddressKind; line1: string; line2?: string | null; town?: string | null; county?: string | null }[];
+  bank_accounts?: { kind: "bank" | "mpesa"; bank_name?: string | null; branch_name?: string | null; account_no: string;
+    account_name?: string | null; is_default_payout?: boolean }[];
+  roles?: PartyRoleName[];
+  pep?: PepInput;
+  reason?: string;
+}
+
+export interface PartyEditResult extends PartyDetail {
+  saved: string[];
+  change_request: ChangeRequest | null;
+}
+
+export interface WatchlistEntry {
+  id: number;
+  list: Watchlist;
+  full_name: string;
+  identifiers: { id_type: IdType; value: string }[];
+  reason: string;
+  source: string | null;
+  status: "active" | "removed";
+  added_by: string;
+  added_at: string;
+  removed_by: string | null;
+  removed_at: string | null;
+  matched_parties?: number;
+}

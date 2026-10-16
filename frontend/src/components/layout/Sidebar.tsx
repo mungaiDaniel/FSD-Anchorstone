@@ -11,6 +11,9 @@ import {
   ArrowUpFromLine,
   Percent,
   Mail,
+  ClipboardCheck,
+  Contact,
+  ShieldAlert,
   Users,
   ShieldCheck,
   DatabaseBackup,
@@ -29,16 +32,21 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { label: "Overview", path: ROUTES.OVERVIEW, icon: <LayoutDashboard size={17} /> },
+  { label: "Clients", path: ROUTES.CLIENTS, icon: <Contact size={17} /> },
   { label: "Investors", path: ROUTES.INVESTORS, icon: <BookUser size={17} /> },
   { label: "Deposits", path: ROUTES.DEPOSITS, icon: <ArrowDownToLine size={17} /> },
   { label: "Withdrawals", path: ROUTES.WITHDRAWALS, icon: <ArrowUpFromLine size={17} /> },
   { label: "Interest", path: ROUTES.INTEREST, icon: <Percent size={17} /> },
   { label: "Emails", path: ROUTES.EMAILS, icon: <Mail size={17} /> },
+  { label: "Approvals", path: ROUTES.APPROVALS, icon: <ClipboardCheck size={17} /> },
 ];
 
 // Administration: Reports for all staff, Audit Log for admins, the rest super admin only.
 const reportsNav: NavItem[] = [{ label: "Reports", path: ROUTES.REPORTS, icon: <FileSpreadsheet size={17} /> }];
-const adminNav: NavItem[] = [{ label: "Audit Log", path: ROUTES.AUDIT_LOG, icon: <ShieldCheck size={17} /> }];
+const adminNav: NavItem[] = [
+  { label: "Watchlists", path: ROUTES.WATCHLIST, icon: <ShieldAlert size={17} /> },
+  { label: "Audit Log", path: ROUTES.AUDIT_LOG, icon: <ShieldCheck size={17} /> },
+];
 const superAdminNav: NavItem[] = [
   { label: "Users", path: ROUTES.USERS, icon: <Users size={17} /> },
   { label: "Backups", path: ROUTES.BACKUPS, icon: <DatabaseBackup size={17} /> },

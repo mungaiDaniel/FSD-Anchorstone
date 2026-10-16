@@ -1,4 +1,7 @@
-import type { PaymentMethod, UserRole } from "./types";
+import type {
+  ConsentMethod, ConsentPurpose, IdType, KycStatus, OrgType, PartyRoleName, PaymentMethod, RelationshipKind,
+  SettingSource, UserRole, Watchlist,
+} from "./types";
 
 export const APP_NAME = "Anchorstone Capital Ltd";
 
@@ -42,6 +45,12 @@ export const ROUTES = {
   AUDIT_LOG: "/audit-log",
   BACKUPS: "/backups",
   REPORTS: "/reports",
+  APPROVALS: "/approvals",
+  CLIENTS: "/clients",
+  CLIENT_NEW: "/clients/new",
+  CLIENT_DETAIL: (id: number | string) => `/clients/${id}`,
+  CLIENT_EDIT: (id: number | string) => `/clients/${id}/edit`,
+  WATCHLIST: "/watchlist",
   SETTINGS: "/settings",
 } as const;
 
@@ -107,4 +116,166 @@ export const API = {
   SETTINGS_EMAIL: "/settings/email",
   SETTINGS_EMAIL_TEST: "/settings/email/test",
   SETTINGS_EMAIL_QUEUE: "/settings/email-queue",
+  SETTINGS_BUSINESS: "/settings/business",
+  SETTINGS_BUSINESS_KEY: (key: string) => `/settings/business/${encodeURIComponent(key)}`,
+
+  CHANGE_REQUESTS: "/change-requests",
+  CHANGE_REQUEST: (id: number) => `/change-requests/${id}`,
+  CHANGE_REQUEST_APPROVE: (id: number) => `/change-requests/${id}/approve`,
+  CHANGE_REQUEST_REJECT: (id: number) => `/change-requests/${id}/reject`,
+  CHANGE_REQUEST_RETURN: (id: number) => `/change-requests/${id}/return`,
+  CHANGE_REQUEST_RESUBMIT: (id: number) => `/change-requests/${id}/resubmit`,
+  CHANGE_REQUEST_CANCEL: (id: number) => `/change-requests/${id}/cancel`,
+
+  PARTIES: "/parties",
+  PARTY: (id: number) => `/parties/${id}`,
+  PARTY_OVERVIEW: (id: number) => `/parties/${id}/overview`,
+  PARTY_CHECK_DUPLICATES: "/parties/check-duplicates",
+  PARTY_RELATIONSHIPS: (id: number) => `/parties/${id}/relationships`,
+  PARTY_RELATIONSHIP_END: (id: number, rid: number) => `/parties/${id}/relationships/${rid}/end`,
+  PARTY_MANDATE: (id: number) => `/parties/${id}/mandate`,
+  PARTY_VERIFY: (id: number) => `/parties/${id}/verify`,
+  PARTY_INVESTOR: (id: number) => `/parties/${id}/investor`,
+  PARTY_PEP: (id: number) => `/parties/${id}/pep`,
+  PARTY_DOCUMENTS: (id: number) => `/parties/${id}/documents`,
+  PARTY_CONSENTS: (id: number) => `/parties/${id}/consents`,
+  PARTY_CONSENT_WITHDRAW: (id: number, cid: number) => `/parties/${id}/consents/${cid}/withdraw`,
+  PARTY_MERGE: (id: number) => `/parties/${id}/merge`,
+  PARTY_TRANSFER: (id: number) => `/parties/${id}/transfer`,
+  INVESTOR_PARTY: (id: number) => `/investors/${id}/party`,
+  SCREENING_RESULTS: "/screening-results",
+  SCREENING_REVIEW: (id: number) => `/screening-results/${id}/review`,
+  WATCHLIST: "/watchlist",
+  WATCHLIST_REMOVE: (id: number) => `/watchlist/${id}/remove`,
+  DOCUMENT_CONTENT: (id: string) => `/documents/${id}/content`,
+  BRANCHES: "/branches",
 } as const;
+
+// ── Clients ──
+
+export const PARTY_ROLE_LABELS: Record<PartyRoleName, string> = {
+  investor: "Investor",
+  borrower: "Borrower",
+  guarantor: "Guarantor",
+  director: "Director",
+  shareholder: "Shareholder",
+  signatory: "Signatory",
+  agent: "Agent",
+  next_of_kin: "Next of kin",
+};
+
+export const RELATIONSHIP_LABELS: Record<RelationshipKind, { incoming: string; outgoing: string }> = {
+  director: { incoming: "Director", outgoing: "Director of" },
+  shareholder: { incoming: "Shareholder", outgoing: "Shareholder in" },
+  signatory: { incoming: "Signatory", outgoing: "Signatory for" },
+  next_of_kin: { incoming: "Next of kin", outgoing: "Next of kin of" },
+  guarantor_of: { incoming: "Guarantor", outgoing: "Guarantor for" },
+  related_party: { incoming: "Related party", outgoing: "Related party of" },
+  referred_by: { incoming: "Referred by (agent)", outgoing: "Agent for" },
+};
+
+export const ORG_TYPE_LABELS: Record<OrgType, string> = {
+  sme: "SME",
+  corporate: "Corporate",
+  cooperative: "Cooperative",
+  ngo: "NGO",
+  investment_group: "Investment group",
+  public_institution: "Public institution",
+  sacco: "SACCO",
+  church: "Church",
+  fund_manager: "Fund manager",
+  insurer: "Insurer",
+};
+
+export const ID_TYPE_LABELS: Record<IdType, string> = {
+  national_id: "National ID",
+  passport: "Passport",
+  alien_id: "Alien ID",
+  kra_pin: "KRA PIN",
+  company_reg_no: "Registration no.",
+};
+
+export const KYC_STATUS_LABELS: Record<KycStatus, string> = {
+  incomplete: "Incomplete",
+  pending_review: "Ready to verify",
+  verified: "Verified",
+};
+
+export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  national_id: "National ID",
+  passport: "Passport",
+  kra_pin: "KRA PIN certificate",
+  cr12: "CR12",
+  certificate_of_incorporation: "Certificate of incorporation / business registration",
+  bank_statement: "Bank statement",
+  mpesa_statement: "M-Pesa statement",
+  audited_financial_statements: "Audited financial statements",
+  title_deed: "Title deed",
+  logbook: "Logbook",
+  valuation_report: "Valuation report",
+  photo: "Photo",
+  signature: "Signature",
+  consent_form: "Signed consent form",
+  other: "Other",
+};
+
+export const CONSENT_PURPOSE_LABELS: Record<ConsentPurpose, string> = {
+  kyc_processing: "KYC processing",
+  ai_document_processing: "Automatic document reading",
+  credit_bureau_check: "Credit bureau checks",
+  marketing: "Marketing",
+};
+
+export const CONSENT_METHOD_LABELS: Record<ConsentMethod, string> = {
+  signed_form: "Signed form",
+  in_branch: "In branch",
+  email: "Email",
+};
+
+export const WATCHLIST_LABELS: Record<Watchlist, string> = {
+  internal_blacklist: "Internal blacklist",
+  pep: "PEP list",
+  sanctions_un: "UN sanctions",
+};
+
+/** Compulsory-detail names from kyc.required_fields.* as staff read them. */
+export const REQUIRED_FIELD_LABELS: Record<string, string> = {
+  name: "first and last name",
+  id_document: "ID or passport",
+  kra_pin: "KRA PIN",
+  date_of_birth: "date of birth",
+  mobile: "mobile number",
+  physical_address: "physical address",
+  next_of_kin: "next of kin",
+  legal_name: "registered name",
+  registration_no: "registration number",
+  registration_date: "registration date",
+  director_with_id: "a director with an ID",
+  phone: "phone number",
+};
+
+// ── Approvals & business rules ──
+
+export const SETTING_SOURCE_LABELS: Record<SettingSource, string> = {
+  working_assumption: "Working assumption",
+  client_confirmed: "Confirmed by client",
+  internal_decision: "Internal decision",
+};
+
+/** Plain-English names for change-request types; unknown types show as sent. */
+export const REQUEST_TYPE_LABELS: Record<string, string> = {
+  "settings.change": "Business rule change",
+  "settings.change_security": "Security setting change",
+  "rbac.grant_role": "Grant role",
+  "rbac.revoke_role": "Revoke role",
+  "rbac.set_limit": "Approval limit",
+  "rbac.set_branch_scope": "Branch access",
+  "rbac.set_role_active": "Role on/off",
+  "document.destroy": "Destroy document",
+  "party.change": "Client details change",
+  "party.verify": "KYC verification",
+  "party.pep_approve": "PEP approval",
+  "party.merge": "Merge clients",
+  "party.branch_transfer": "Branch transfer",
+  "watchlist.remove": "Watchlist removal",
+};
