@@ -61,8 +61,11 @@ class BaseConfig:
     MAIL_SUPPRESS_SEND = _env_bool("MAIL_SUPPRESS_SEND", False)
     MAIL_DEBUG = _env_bool("MAIL_DEBUG", False)
 
-    # Background jobs (email send queue, daily backup). Off in tests.
-    SCHEDULER_ENABLED = _env_bool("SCHEDULER_ENABLED", True)
+    # Background jobs run in the worker process (flask --app main worker).
+    # Web processes load SMTP settings saved in Settings on their first request.
+    APPLY_DB_EMAIL_SETTINGS = _env_bool("APPLY_DB_EMAIL_SETTINGS", True)
+    # The worker touches this file every loop, for container health checks (empty = off).
+    WORKER_HEARTBEAT_FILE = os.environ.get("WORKER_HEARTBEAT_FILE", "")
     EMAIL_QUEUE_INTERVAL_MINUTES = _env_int("EMAIL_QUEUE_INTERVAL_MINUTES", 2)
     EMAIL_QUEUE_BATCH_SIZE = _env_int("EMAIL_QUEUE_BATCH_SIZE", 100)
 
@@ -110,7 +113,7 @@ class TestingConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = os.environ.get("TEST_DATABASE_URI") or "postgresql://localhost/anchorstone_test"
     MAIL_SUPPRESS_SEND = True
     MAIL_DEFAULT_SENDER = "statements@anchorstone.test"
-    SCHEDULER_ENABLED = False
+    APPLY_DB_EMAIL_SETTINGS = False
     DB_BACKUP_ENABLED = False
 
 

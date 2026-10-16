@@ -4,7 +4,8 @@ Anchorstone Capital Ltd — statement system API.
     flask --app main db upgrade                  # create / migrate the schema
     flask --app main create-superadmin           # first login account
     flask --app main run --port 4455             # dev server
-    gunicorn main:app                            # production
+    flask --app main worker                      # background jobs (emails, reports, backups)
+    gunicorn main:app                            # production web
 """
 import logging
 import os
@@ -40,6 +41,7 @@ def _import_models():
     from app.Emails.model import EmailAttachment, OutboxEmail  # noqa: F401
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
     from app.Investors.model import Investor  # noqa: F401
+    from app.Jobs.model import Job, PeriodicTask  # noqa: F401
     from app.Reports.model import ReportSchedule  # noqa: F401
     from app.Settings.model import EmailSettings, SettingVersion  # noqa: F401
     from app.Transactions.model import Deposit, Withdrawal  # noqa: F401
@@ -102,45 +104,51 @@ def create_app(config_name: str | None = None) -> Flask:
                settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1):
         app.register_blueprint(bp)
     load_handlers()
+    from app.Jobs.registry import load_tasks
+    load_tasks()
 
     @app.get("/api/v1/health")
     def health():
         return {"status": "ok"}
 
     _register_cli(app)
-    _start_background_jobs(app)
+    _apply_email_settings_on_first_request(app)
     return app
 
 
-def _start_background_jobs(app: Flask) -> None:
-    """Start the scheduler in the process that actually serves requests — on its
-    first request. The debug reloader's watcher process and CLI commands
-    (db upgrade, create-superadmin) never serve requests, so they never start
-    a second scheduler (which would re-queue in-flight emails and race the
-    live server). Every email is queued by a request, so nothing waits on this."""
-    if not app.config.get("SCHEDULER_ENABLED"):
+def _apply_email_settings_on_first_request(app: Flask) -> None:
+    """Load the SMTP settings saved in Settings into Flask-Mail once per web process
+    (for "Send now" and the test email). Background work runs in the worker
+    process (flask --app main worker), never in web processes."""
+    if not app.config.get("APPLY_DB_EMAIL_SETTINGS"):
         return
     lock = threading.Lock()
-    state = {"started": False}
+    state = {"done": False}
 
     @app.before_request
-    def _ensure_background_jobs():
-        if state["started"]:
+    def _ensure_email_settings():
+        if state["done"]:
             return
         with lock:
-            if state["started"]:
+            if state["done"]:
                 return
-            state["started"] = True
+            state["done"] = True
             try:
                 from app.Settings.service import apply_email_settings_to_app
                 apply_email_settings_to_app(app, db.session)
-                from app.logic.scheduler import start_scheduler
-                start_scheduler(app)
             except Exception:
-                logger.error("Background jobs failed to start (has `flask db upgrade` been run?)", exc_info=True)
+                logger.error("Couldn't load email settings (has `flask db upgrade` been run?)", exc_info=True)
 
 
 def _register_cli(app: Flask) -> None:
+    @app.cli.command("worker")
+    @click.option("--queues", default="", help="Comma-separated queues to serve (default: all).")
+    @click.option("--poll", default=2.0, show_default=True, help="Seconds to wait when there is no work.")
+    def worker(queues, poll):
+        """Run background jobs: email sending, scheduled reports, backups, expiries."""
+        from app.Jobs.worker import run_worker
+        run_worker(app, [q.strip() for q in queues.split(",") if q.strip()] or None, poll)
+
     @app.cli.command("create-superadmin")
     @click.option("--name", prompt=True)
     @click.option("--email", prompt=True)

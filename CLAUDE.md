@@ -33,6 +33,12 @@ Propose a recommended default.
 - **"Today" means Nairobi time.** Use `today_eat()` from `app/utils/dates.py` (fixed UTC+3, same as Africa/Nairobi, no DST). It applies to value dates, the no-future-dates rule, month-end and "as of" figures. Never use `date.today()` or the server's local date.
 - **Timestamps** are stored timezone-aware in UTC (`utcnow()`).
 - **The scheduler runs in UTC**, so convert (07:00 Nairobi = 04:00 UTC).
+
+### Background work runs in the worker, never in web processes
+
+- Jobs are rows in `jobs` (`app/Jobs`), run by `flask --app main worker`. Register a task with `@task("name", queue=…)` in `app/Jobs/tasks.py` and call `enqueue(name, args)` **without committing**: the caller commits it with the business change.
+- Periodic work is a `Periodic` entry in `app/Jobs/registry.py`. Each slot is enqueued once (unique `dedupe_key`) however many processes run, and missed slots catch up (`latest` or `each`).
+- Tasks must be safe to run again: a job whose worker dies is reclaimed and re-run.
 - **Frontend:** the equivalent is `todayISO()`.
 - **Tests** pin "today" to 2026-10-05. Any module that imports `today_eat` must be added to `_DATED_MODULES` in `backend/tests/conftest.py`.
 
@@ -81,7 +87,7 @@ Propose a recommended default.
 
 - Investor and management emails are rows in `email_outbox` (`app/Emails/model.py`).
 - The `queue_*` functions in `app/Emails/composer.py` add the row **without committing**. The caller commits it together with the business change.
-- The scheduler (`app/logic/scheduler.py` → `drain_queue`) sends only `queued` rows. It claims them with `SKIP LOCKED` and retries up to 3 times.
+- The worker's `email.drain` job (`app/Jobs/tasks.py` → `drain_queue`) sends only `queued` rows. It claims them with `SKIP LOCKED` and retries up to the `email.max_attempts` setting (3).
 - Anything an admin must review starts as `pending` (Confirm → `queued`, Suppress → `cancelled`).
 - Attachments that must not change are stored in `email_attachments` when the email is created.
 - Unique constraints stop a deposit, withdrawal, payout or request key from being emailed twice.

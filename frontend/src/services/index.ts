@@ -216,10 +216,8 @@ export const reportService = {
 export const backupService = {
   getAll: (limit = 50) => get<BackupLogEntry[]>(`${API.BACKUPS}?limit=${limit}`),
   getStatus: () => get<BackupStatus>(API.BACKUPS_STATUS),
-  runNow: () =>
-    api
-      .post<ApiResponse<BackupLogEntry>>(API.BACKUPS_RUN_NOW, undefined, { timeout: 5 * 60 * 1000 })
-      .then((r) => r.data.data as BackupLogEntry),
+  // Queues the backup for the worker; it shows in the list when it finishes.
+  runNow: () => send<{ job_id: number }>("post", API.BACKUPS_RUN_NOW),
 };
 
 export const settingsService = {

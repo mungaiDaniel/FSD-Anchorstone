@@ -38,9 +38,9 @@ export default function BackupsPage() {
     setRunning(true);
     try {
       await backupService.runNow();
-      toast.success("Backup completed and uploaded to OneDrive.");
+      toast.success("Backup started. It appears below when it finishes uploading to OneDrive.");
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Backup failed."));
+      toast.error(apiErrorMessage(err, "Couldn't start the backup."));
     } finally {
       setRunning(false);
       load();
@@ -55,7 +55,7 @@ export default function BackupsPage() {
         actions={
           <button className="btn btn-primary btn-sm d-flex align-items-center gap-1" onClick={runNow} disabled={running}>
             {running ? <Loader2 size={14} className="app-spin" /> : <DatabaseBackup size={14} />}
-            {running ? "Backing up…" : "Run backup now"}
+            {running ? "Starting…" : "Run backup now"}
           </button>
         }
       />

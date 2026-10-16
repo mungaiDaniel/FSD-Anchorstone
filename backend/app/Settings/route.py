@@ -8,7 +8,7 @@ from app.Approvals import service as approvals
 from app.auth import actor_email, current_user, requires
 from app.database.database import db
 from app.Emails.sender import build_message, mail
-from app.logic.scheduler import EMAIL_JOB_ID, next_run
+from app.Jobs.scheduler import next_run
 from app.Settings import business
 from app.Settings.handlers import request_type_for
 from app.Settings.registry import SOURCES
@@ -67,7 +67,7 @@ def get_queue_settings():
     return ok({
         "batch_size": effective.get("email_queue_batch_size"),
         "interval_minutes": effective.get("email_queue_interval_minutes"),
-        "next_run_at": next_run(EMAIL_JOB_ID),
+        "next_run_at": next_run("email.drain"),
     })
 
 

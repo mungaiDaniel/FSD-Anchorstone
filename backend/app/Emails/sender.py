@@ -136,12 +136,3 @@ def drain_queue(batch_size: int = 100) -> dict:
     return {"claimed": len(ids), "sent": sent, "failed": failed}
 
 
-def recover_stuck_sending() -> int:
-    """Rows left in 'sending' by a crash/restart go back to the queue."""
-    count = (
-        db.session.query(OutboxEmail)
-        .filter(OutboxEmail.status == STATUS_SENDING)
-        .update({"status": STATUS_QUEUED})
-    )
-    db.session.commit()
-    return count

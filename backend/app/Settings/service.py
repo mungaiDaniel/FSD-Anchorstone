@@ -138,7 +138,5 @@ def save_email_queue_settings(app, session, batch_size: int, interval_minutes: i
     create_audit_log("UPDATE_EMAIL_QUEUE", target_type="settings",
                      new_value={"batch_size": batch_size, "interval_minutes": interval_minutes})
     session.commit()
-
-    from app.logic.scheduler import reschedule_email_queue
-    reschedule_email_queue(interval_minutes)  # batch size is read fresh on every run
+    # The worker's scheduler reads the interval (and the drain the batch size) fresh on every tick.
     return row

@@ -31,12 +31,16 @@ RUN useradd -m -u 1000 appuser && \
 
 USER appuser
 
-# Health check
+# Health check (web: /api/v1/health; worker: its heartbeat file)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/api/v1/health')" || exit 1
+    CMD ["sh", "scripts/start.sh", "health"]
 
 # Expose port
 EXPOSE 5000
 
-# Run Gunicorn (production WSGI server)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "8", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "main:app"]
+# One image, two processes. Run both, each in its own container:
+#   docker run <image>          the API (gunicorn; WEB_CONCURRENCY workers, default 1)
+#   docker run <image> worker   background jobs (emails, scheduled reports, backups)
+# Scheduled work runs once however many web or worker containers are running.
+ENTRYPOINT ["sh", "scripts/start.sh"]
+CMD ["web"]

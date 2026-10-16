@@ -71,7 +71,12 @@ npm ci
 npm run dev                     # http://localhost:5173
 ```
 
-Production: `APP_ENV=production gunicorn main:app` from `backend/` (see `backend/Dockerfile`). The app
+Production runs two processes from `backend/` (see `backend/Procfile` and `backend/Dockerfile`):
+
+- **web:** `APP_ENV=production gunicorn main:app`. Any number of gunicorn workers is safe.
+- **worker:** `APP_ENV=production flask --app main worker`. It sends queued emails, generates the monthly AUM summary, runs the daily backup and expires stale approval requests. Jobs are rows in PostgreSQL (`jobs`), so they survive restarts. After downtime the worker catches up (each missed month's AUM summary, the latest missed backup). One worker is enough, and more are safe: no job runs twice.
+
+In development, run `flask --app main worker` in a second terminal if you want emails to go out on their own ("Send now" on the Emails page works without it). The app
 refuses to start in production without `SECRET_KEY` and `DATABASE_URI`. Email
 sending needs `MAIL_DEFAULT_SENDER` (or `MAIL_USERNAME`). Without it, emails
 stay queued and show the error on the Emails page.

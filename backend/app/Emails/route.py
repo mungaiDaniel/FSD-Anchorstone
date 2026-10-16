@@ -11,7 +11,7 @@ from app.Emails.model import (
 )
 from app.Emails import statements
 from app.Emails.sender import drain_queue
-from app.logic.scheduler import EMAIL_JOB_ID, next_run
+from app.Jobs.scheduler import next_run
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import utcnow
 from app.utils.http import Conflict, NotFound, ok, page_args, paginate
@@ -43,7 +43,7 @@ def queue_status():
     counts = dict(db.session.query(OutboxEmail.status, func.count()).group_by(OutboxEmail.status).all())
     return ok({
         "counts": counts,
-        "next_run_at": next_run(EMAIL_JOB_ID),
+        "next_run_at": next_run("email.drain"),
         "suppressed": bool(current_app.config.get("MAIL_SUPPRESS_SEND")),
     })
 
