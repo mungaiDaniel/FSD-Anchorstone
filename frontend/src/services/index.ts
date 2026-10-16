@@ -336,6 +336,12 @@ export const partyService = {
     evidence_document_id?: string }) => send<PartyConsent>("post", API.PARTY_CONSENTS(id), data),
   withdrawConsent: (id: number, consentId: number, note?: string) =>
     send<PartyConsent>("post", API.PARTY_CONSENT_WITHDRAW(id, consentId), { note }),
+  /** Merge this duplicate into survivorId (party.merge, approved by someone else). */
+  merge: (id: number, survivorId: number, reason: string) =>
+    send<ChangeRequest>("post", API.PARTY_MERGE(id), { survivor_id: survivorId, reason }),
+  transfer: (id: number, toBranchId: number, reason: string) =>
+    send<ChangeRequest>("post", API.PARTY_TRANSFER(id), { to_branch_id: toBranchId, reason }),
+  branches: () => get<{ id: number; code: string; name: string; status: string }[]>(API.BRANCHES),
   investorParty: (investorId: number) =>
     get<{ party_id: number; party_no: string; account_id: number }>(API.INVESTOR_PARTY(investorId)),
 };

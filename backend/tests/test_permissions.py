@@ -102,6 +102,8 @@ NEW_SINCE_PHASE_1 = {
     ("GET", "/api/v1/parties/<int:party_id>/documents"), ("POST", "/api/v1/parties/<int:party_id>/documents"),
     ("GET", "/api/v1/parties/<int:party_id>/consents"), ("POST", "/api/v1/parties/<int:party_id>/consents"),
     ("POST", "/api/v1/parties/<int:party_id>/consents/<int:consent_id>/withdraw"),
+    ("POST", "/api/v1/parties/<int:party_id>/merge"), ("POST", "/api/v1/parties/<int:party_id>/transfer"),
+    ("GET", "/api/v1/branches"),
     ("GET", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist/<int:entry_id>/remove"),
 }
 

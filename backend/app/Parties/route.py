@@ -20,6 +20,9 @@ Clients (parties).
     GET   /api/v1/parties/<id>/documents          current and earlier versions, by type
     POST  /api/v1/parties/<id>/documents          multipart: file, document_type (FSD 5.1 list)
     GET   /api/v1/parties/<id>/consents   POST …/consents   POST …/consents/<cid>/withdraw
+    POST  /api/v1/parties/<id>/merge              {survivor_id, reason}: merge this duplicate (party.merge)
+    POST  /api/v1/parties/<id>/transfer           {to_branch_id, reason} (party.branch_transfer)
+    GET   /api/v1/branches                        active branches, for the transfer form
 """
 from flask import Blueprint, request
 
@@ -242,3 +245,32 @@ def record_consent(party_id):
 @requires("consent.capture")
 def withdraw_consent(party_id, consent_id):
     return ok(consent.withdraw(party_id, consent_id, _body(), actor_email()).to_dict(), "Consent withdrawn.")
+
+
+# ── Merge and branch transfer (KYC-10, KYC-12) ──
+
+
+@parties_v1.post("/api/v1/parties/<int:party_id>/merge")
+@requires("party.edit")
+def merge_party(party_id):
+    body = _body()
+    cr = approvals.submit("party.merge", {"survivor_id": body.get("survivor_id"), "merged_id": party_id,
+                                          "reason": body.get("reason")}, current_user(), body.get("reason"))
+    return ok(cr.to_dict(approvals.summary(cr)), "Merge submitted for approval.", 201)
+
+
+@parties_v1.post("/api/v1/parties/<int:party_id>/transfer")
+@requires("party.edit")
+def transfer_party(party_id):
+    body = _body()
+    cr = approvals.submit("party.branch_transfer", {"party_id": party_id, "to_branch_id": body.get("to_branch_id"),
+                                                    "reason": body.get("reason")}, current_user(), body.get("reason"))
+    return ok(cr.to_dict(approvals.summary(cr)), "Branch transfer submitted for approval.", 201)
+
+
+@parties_v1.get("/api/v1/branches")
+@requires("party.view")
+def list_branches():
+    from app.Branches.model import Branch
+
+    return ok([b.to_dict() for b in Branch.query.filter_by(status="active").order_by(Branch.code)])

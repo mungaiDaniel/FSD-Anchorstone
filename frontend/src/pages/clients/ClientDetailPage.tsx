@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  BadgeCheck, Building2, ChevronLeft, FileUp, Pencil, PiggyBank, ShieldAlert, UserPlus,
+  ArrowRightLeft, BadgeCheck, Building2, ChevronLeft, FileUp, GitMerge, Pencil, PiggyBank, ShieldAlert, UserPlus,
 } from "lucide-react";
 import { Actor, Card, EmptyState, PageHeader, Stat } from "@/components/ui/Page";
 import { StatusBadge } from "@/components/data/StatusBadge";
 import { KycBadge, PartyFlags } from "@/components/clients/ClientBadges";
 import {
-  ConsentModal, MandateModal, OpenInvestmentModal, PepModal, RelatedPartyModal, ScreeningReviewModal, UploadDocumentModal,
+  ConsentModal, MandateModal, MergeModal, OpenInvestmentModal, PepModal, RelatedPartyModal, ScreeningReviewModal,
+  TransferModal, UploadDocumentModal,
 } from "@/components/clients/ClientModals";
 import { requestTypeLabel } from "@/components/approvals/ChangeRequestModal";
 import { partyService } from "@/services";
@@ -46,8 +47,15 @@ export default function ClientDetailPage() {
   const [p, setP] = useState<PartyOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("details");
-  const [modal, setModal] = useState<"related" | "mandate" | "upload" | "consent" | "pep" | "investment" | null>(null);
+  const [modal, setModal] = useState<
+    "related" | "mandate" | "upload" | "consent" | "pep" | "investment" | "merge" | "transfer" | null>(null);
   const [review, setReview] = useState<ScreeningResult | null>(null);
+  const [branches, setBranches] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    partyService.branches().then((list) => setBranches(Object.fromEntries(list.map((b) => [b.id, `${b.code} ${b.name}`]))))
+      .catch(() => setBranches({}));
+  }, []);
 
   const load = useCallback(() => {
     partyService.overview(id).then((d) => { setP(d); setError(null); })
@@ -114,6 +122,12 @@ export default function ClientDetailPage() {
               )}
               <button className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onClick={() => setModal("pep")}>
                 <ShieldAlert size={14} /> {p.is_pep ? "PEP details" : "Flag as PEP"}
+              </button>
+              <button className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onClick={() => setModal("transfer")}>
+                <ArrowRightLeft size={14} /> Transfer branch
+              </button>
+              <button className="btn btn-sm app-btn-ghost-danger d-flex align-items-center gap-1" onClick={() => setModal("merge")}>
+                <GitMerge size={14} /> Merge duplicate
               </button>
               {canVerify && (
                 <button className="btn btn-primary btn-sm d-flex align-items-center gap-1"
@@ -238,7 +252,7 @@ export default function ClientDetailPage() {
             <Card title="Record" className="mb-3">
               <dl className="mb-0">
                 <Row label="Created">{formatDateTime(p.created_at)} <Actor email={p.created_by} prefix="by" /></Row>
-                <Row label="Branch">{p.home_branch_id === 1 ? "000 Head Office" : `Branch ${p.home_branch_id}`}</Row>
+                <Row label="Branch">{branches[p.home_branch_id] ?? `Branch ${p.home_branch_id}`}</Row>
                 <Row label="Notes">{p.notes}</Row>
               </dl>
             </Card>
@@ -424,6 +438,8 @@ export default function ClientDetailPage() {
       <PepModal party={p} open={modal === "pep"} onClose={() => setModal(null)} onDone={load} />
       <OpenInvestmentModal party={p} open={modal === "investment"} onClose={() => setModal(null)} onDone={load} />
       <ScreeningReviewModal result={review} onClose={() => setReview(null)} onDone={load} />
+      <MergeModal party={p} open={modal === "merge"} onClose={() => setModal(null)} onDone={load} />
+      <TransferModal party={p} open={modal === "transfer"} onClose={() => setModal(null)} onDone={load} />
     </div>
   );
 }

@@ -351,3 +351,74 @@ export function OpenInvestmentModal({ party, open, onClose, onDone }: { party: P
     </Modal>
   );
 }
+
+// ── Merge (KYC-10) and branch transfer (KYC-12) ──
+
+export function MergeModal({ party, open, onClose, onDone }: { party: PartyDetail; open: boolean; onClose: () => void; onDone: Done }) {
+  const [search, setSearch] = useState("");
+  const [matches, setMatches] = useState<PartyListItem[]>([]);
+  const [picked, setPicked] = useState<PartyListItem | null>(null);
+  const [reason, setReason] = useState("");
+  const { saving, run } = useSubmit(onDone, onClose);
+  useEffect(() => { if (open) { setSearch(""); setPicked(null); setReason(""); } }, [open]);
+  useEffect(() => {
+    if (search.trim().length < 2 || picked) { setMatches([]); return; }
+    const t = window.setTimeout(() => {
+      partyService.list({ search: search.trim(), type: party.party_type, per_page: 8 })
+        .then((d) => setMatches(d.items.filter((p) => p.id !== party.id))).catch(() => setMatches([]));
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [search, picked, party.id, party.party_type]);
+  return (
+    <Modal title={`Merge ${party.party_no} into another record`} open={open} onClose={onClose} submitting={saving}
+      submitVariant="danger" submitLabel="Submit merge for approval" submitDisabled={!picked || !reason.trim()}
+      onSubmit={() => run(() => partyService.merge(party.id, picked!.id, reason.trim()))}>
+      <p style={{ fontSize: 13.5 }}>
+        Use this when {party.display_name} is a duplicate. Everything on this record (identifiers, contacts, accounts,
+        documents, consents, links and history) moves to the record you keep; this one is marked merged and kept for the record.
+      </p>
+      <Field label="Keep this record" hint="Search by name, client number, ID or phone.">
+        <input className="form-control mt-1" value={search} onChange={(e) => { setSearch(e.target.value); setPicked(null); }} />
+        {matches.length > 0 && (
+          <div className="list-group mt-1">
+            {matches.map((m) => (
+              <button type="button" key={m.id} className="list-group-item list-group-item-action py-1" style={{ fontSize: 13 }}
+                onClick={() => { setPicked(m); setSearch(`${m.display_name} (${m.party_no})`); }}>
+                {m.display_name} <span className="tw:text-text-tertiary font-tabular">{m.party_no}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Field>
+      <Field label="Reason"><textarea className="form-control mt-1" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+      <p className="tw:text-xs tw:text-text-tertiary mb-0">Refused if both records hold an investment account or have different ID numbers.</p>
+    </Modal>
+  );
+}
+
+export function TransferModal({ party, open, onClose, onDone }: { party: PartyDetail; open: boolean; onClose: () => void; onDone: Done }) {
+  const [branches, setBranches] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [to, setTo] = useState<number | "">("");
+  const [reason, setReason] = useState("");
+  const { saving, run } = useSubmit(onDone, onClose);
+  useEffect(() => {
+    if (!open) return;
+    setTo("");
+    setReason("");
+    partyService.branches().then(setBranches).catch(() => setBranches([]));
+  }, [open]);
+  const others = branches.filter((b) => b.id !== party.home_branch_id);
+  return (
+    <Modal title="Transfer to another branch" open={open} onClose={onClose} submitting={saving}
+      submitLabel="Submit for approval" submitDisabled={to === "" || !reason.trim()}
+      onSubmit={() => run(() => partyService.transfer(party.id, Number(to), reason.trim()))}>
+      <Field label="Move to" hint={others.length === 0 ? "There is no other active branch yet." : "The client, their accounts and investor record move. Numbers don't change."}>
+        <select className="form-select mt-1" value={to} onChange={(e) => setTo(e.target.value ? Number(e.target.value) : "")} disabled={others.length === 0}>
+          <option value="">Choose a branch…</option>
+          {others.map((b) => <option key={b.id} value={b.id}>{b.code} {b.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Reason"><textarea className="form-control mt-1" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+    </Modal>
+  );
+}
