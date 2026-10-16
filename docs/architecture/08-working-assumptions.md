@@ -90,7 +90,7 @@ We're building now with our own defaults and will confirm them with Anchorstone 
 | Q-CO3 | Out-of-portfolio access | Flag (log + report), don't block, except staff accounts and PEPs. Every document view logged (FSD SEC-06). Watermark KYC downloads. | 07 + FSD SEC-06 | D4 | `access.out_of_portfolio_mode` (`flag` / `block`), `documents.watermark_kyc` |
 | Q-CO4 | In duplum | Flag and stop accrual when unpaid interest and charges reach outstanding principal | 07 = FSD INT-05 | E5 | `lending.in_duplum_enabled` |
 | Q-CO5 | Credit bureau | Monthly submission to the bureau(s) Anchorstone uses; enquiries need consent | 07 = FSD NTF-05 | G7 | `crb.providers`, `crb.submission_day` |
-| Q-CO6 | Screening lists | Internal blacklist + UN sanctions list + manual PEP flag. A match blocks onboarding until a manager reviews (FSD KYC-06). | 07 + FSD KYC-06 | G6 | `screening.lists_enabled` |
+| Q-CO6 | Screening lists | Internal blacklist + UN sanctions list + manual PEP flag. A match blocks onboarding until a manager reviews (FSD KYC-06). **In use after phase 2b: internal blacklist + PEP list only** (`screening.lists_enabled` = `internal_blacklist`, `pep`). The UN list import is built separately; `sanctions_un` is added once compliance confirms its source and refresh. | 07 + FSD KYC-06 | G6 | `screening.lists_enabled` |
 | Q-CO7 | Notice wording approval | Legal approves recovery templates before use. Admins edit templates (FSD NTF-02) under maker-checker. | 07 + FSD NTF-02 | E6 | `notification_templates` (structured) |
 | Q-CO8 | Retention | **Documents: 7 years after the relationship ends**, including declined applicants (the relationship ends at the decision). Raw AI outputs: 24 months after decision. Screening runs and audit logs: 7 years. | **WA-12** (documents) + 07 (AI outputs, logs) | G5 | `retention.documents_years_after_end`, `retention.ai_raw_output_months`, `retention.audit_years` |
 | Q-CO9 | ID photos | Store ID images for KYC. Never analyse faces. | 07 | G8 | ⛔ structural (safety rule, §4) |
@@ -230,7 +230,7 @@ The registry is the single list of setting keys. Each entry declares:
 | `binding` | When the value attaches to a record (§3.3): `immediate`, `event_date`, `at_booking`, `new_versions_only` |
 | `category` | `credit` / `finance` / `investments` / `compliance` / `security` / `operations` |
 | `edit_permission`, `approve_permission` | e.g. `settings.credit.edit` / `settings.credit.approve`. System administrators can't approve non-IT categories (segregation of duties). |
-| `approvals_required` | 1 by default. 2 for `security.*` and `kyc.maker_checker_fields`. |
+| `approvals_required` | 1 by default. 2 for `security.*` and `ai.enabled`. (`kyc.maker_checker_fields` is planned at 2 but is 1 in the registry, pending confirmation.) |
 | `wa_ref`, `questionnaire_ref`, `seventeen_ref` | Traceability back to this document |
 | `description` | Plain-language text shown on the Settings screen |
 

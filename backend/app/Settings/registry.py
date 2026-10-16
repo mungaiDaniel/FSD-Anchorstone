@@ -176,7 +176,8 @@ DEFINITIONS = [
     SettingDefinition("kyc.maker_checker_fields", "list", ["bank", "identity", "payout"],
                       subset_of("identity", "bank", "payout", "email", "phone", "address"), IMMEDIATE, "compliance",
                       "Investor / party details whose changes need a second person's approval. Other contact "
-                      "changes save immediately and are audited.", wa_ref="WA-01", questionnaire_ref="B4"),
+                      "changes save immediately and are audited.", in_use=True, wa_ref="WA-01",
+                      questionnaire_ref="B4"),
     SettingDefinition("kyc.required_fields.person", "list", sorted(PERSON_REQUIRED_FIELDS),
                       subset_of(*PERSON_REQUIRED_FIELDS), IMMEDIATE, "compliance",
                       "Details an individual must have before KYC can be verified.", in_use=True,
