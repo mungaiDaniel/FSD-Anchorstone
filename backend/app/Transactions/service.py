@@ -9,10 +9,12 @@ Deposits
     confirmation was already sent, the investor is sent a reversal notice
 
 Withdrawals (maker-checker)
-  - staff records a request → pending; balance is NOT reduced yet
-  - a different admin approves → balance reduced from the value date, confirmation emailed
-  - or a different admin rejects it (with a reason)
-  - a request can't exceed the available balance (balance − other pending requests),
+  - staff records a request → pending; balance is NOT reduced yet, but a
+    'pending_withdrawal' account hold takes it out of the available balance
+  - a different admin approves → hold released, balance reduced from the value date,
+    confirmation emailed
+  - or a different admin rejects it (with a reason) → hold released
+  - a request can't exceed the available balance (balance − active holds),
     and approval re-checks that no day from the value date onward would go negative
 """
 from decimal import Decimal
@@ -34,12 +36,14 @@ from app.Emails.model import (
     STATUS_SENT,
     OutboxEmail,
 )
+from app.Parties.model import HOLD_PENDING_WITHDRAWAL
 from app.Transactions.ledger import (
     assert_not_locked,
-    balance_as_of,
+    available_balance,
     lock_investor,
     min_balance_from,
-    pending_withdrawals_total,
+    place_hold,
+    release_hold,
 )
 from app.Transactions.model import (
     DEPOSIT_POSTED,
@@ -196,7 +200,7 @@ def request_withdrawal(data: dict, actor: str) -> Withdrawal:
     if investor.status != "active":
         raise ValidationError("Withdrawals can only be requested for active investors.")
 
-    available = balance_as_of(investor.id) - pending_withdrawals_total(investor.id)
+    available = available_balance(investor.id)
     if amount > available:
         raise ValidationError(
             f"Amount exceeds the available balance of {fmt_kes(available)} "
@@ -215,6 +219,7 @@ def request_withdrawal(data: dict, actor: str) -> Withdrawal:
     )
     db.session.add(withdrawal)
     db.session.flush()
+    place_hold(investor, amount, HOLD_PENDING_WITHDRAWAL, "withdrawal", withdrawal.id, actor)
     create_audit_log(
         "REQUEST_WITHDRAWAL", target_type="withdrawal", target_id=withdrawal.id,
         target_name=investor.client_code, description=f"{fmt_kes(amount)} requested",
@@ -262,7 +267,7 @@ def approve_withdrawal(withdrawal_id: int, data: dict, actor: str) -> Withdrawal
     withdrawal.payment_reference = _text(data.get("payment_reference"), 100)
     withdrawal.decided_by = actor
     withdrawal.decided_at = utcnow()
-    db.session.flush()
+    release_hold(HOLD_PENDING_WITHDRAWAL, "withdrawal", withdrawal.id, actor)
     queue_withdrawal_confirmation(withdrawal, actor)
 
     create_audit_log(
@@ -287,6 +292,7 @@ def reject_withdrawal(withdrawal_id: int, data: dict, actor: str) -> Withdrawal:
     withdrawal.rejection_reason = reason
     withdrawal.decided_by = actor
     withdrawal.decided_at = utcnow()
+    release_hold(HOLD_PENDING_WITHDRAWAL, "withdrawal", withdrawal.id, actor)
 
     create_audit_log(
         "REJECT_WITHDRAWAL", target_type="withdrawal", target_id=withdrawal.id,

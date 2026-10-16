@@ -5,6 +5,11 @@ Balance arithmetic — the single place that defines what an investor's balance 
 
 Value dates are never in the future (enforced when recording), so "as of today"
 is simply the sum over everything posted/approved.
+
+    available = balance − Σ active (unreleased) account_holds on the investor's account
+
+A pending withdrawal is a hold (reason 'pending_withdrawal'): placed when it is
+requested, released when it is approved or rejected.
 """
 from collections import defaultdict
 from datetime import date
@@ -15,13 +20,14 @@ from sqlalchemy import func
 from app.database.database import db
 from app.Interest.model import LOCKED_PERIOD_STATUSES, InterestPeriod
 from app.Investors.model import Investor
+from app.Parties.model import HOLD_PENDING_WITHDRAWAL, AccountHold
 from app.Transactions.model import (
     DEPOSIT_POSTED,
     WITHDRAWAL_APPROVED,
-    WITHDRAWAL_PENDING,
     Deposit,
     Withdrawal,
 )
+from app.utils.dates import utcnow
 from app.utils.http import NotFound, ValidationError
 from app.utils.money import ZERO
 
@@ -77,13 +83,52 @@ def balance_as_of(investor_id: int, as_of: date | None = None) -> Decimal:
     return _deposits_total(investor_id, as_of) - _withdrawals_total(investor_id, as_of)
 
 
-def pending_withdrawals_total(investor_id: int) -> Decimal:
-    total = (
-        db.session.query(func.coalesce(func.sum(Withdrawal.amount), 0))
-        .filter(Withdrawal.investor_id == investor_id, Withdrawal.status == WITHDRAWAL_PENDING)
-        .scalar()
+def _holds_query(investor_id: int, reason: str | None):
+    q = (
+        db.session.query(func.coalesce(func.sum(AccountHold.amount), 0))
+        .join(Investor, Investor.account_id == AccountHold.account_id)
+        .filter(Investor.id == investor_id, AccountHold.released_at.is_(None))
     )
-    return Decimal(total)
+    if reason is not None:
+        q = q.filter(AccountHold.reason == reason)
+    return q
+
+
+def holds_total(investor_id: int) -> Decimal:
+    """Everything held on the investor's account now, whatever the reason."""
+    return Decimal(_holds_query(investor_id, None).scalar())
+
+
+def pending_withdrawals_total(investor_id: int) -> Decimal:
+    return Decimal(_holds_query(investor_id, HOLD_PENDING_WITHDRAWAL).scalar())
+
+
+def available_balance(investor_id: int) -> Decimal:
+    return balance_as_of(investor_id) - holds_total(investor_id)
+
+
+def place_hold(investor: Investor, amount: Decimal, reason: str, reference_type: str, reference_id: int,
+               actor: str) -> AccountHold:
+    """Adds the hold without committing. The caller holds lock_investor() and commits it with the
+    business change."""
+    hold = AccountHold(account_id=investor.account_id, amount=amount, reason=reason,
+                       reference_type=reference_type, reference_id=reference_id,
+                       placed_by=actor, placed_at=utcnow())
+    db.session.add(hold)
+    db.session.flush()
+    return hold
+
+
+def release_hold(reason: str, reference_type: str, reference_id: int, actor: str) -> AccountHold:
+    """Releases the active hold for a reference without committing (caller holds lock_investor())."""
+    hold = AccountHold.query.filter_by(reason=reason, reference_type=reference_type, reference_id=reference_id,
+                                       released_at=None).first()
+    if hold is None:
+        raise ValidationError(f"No active {reason.replace('_', ' ')} hold for {reference_type} {reference_id}.")
+    hold.released_by = actor
+    hold.released_at = utcnow()
+    db.session.flush()
+    return hold
 
 
 def balance_events(investor_ids: list[int] | None, through: date) -> dict[int, list[tuple[date, Decimal]]]:
@@ -174,9 +219,9 @@ def balances_subquery():
         .subquery()
     )
     pend = (
-        db.session.query(Withdrawal.investor_id.label("investor_id"), func.sum(Withdrawal.amount).label("total"))
-        .filter(Withdrawal.status == WITHDRAWAL_PENDING)
-        .group_by(Withdrawal.investor_id)
+        db.session.query(AccountHold.account_id.label("account_id"), func.sum(AccountHold.amount).label("total"))
+        .filter(AccountHold.reason == HOLD_PENDING_WITHDRAWAL, AccountHold.released_at.is_(None))
+        .group_by(AccountHold.account_id)
         .subquery()
     )
     return (
@@ -187,7 +232,7 @@ def balances_subquery():
         )
         .outerjoin(dep, dep.c.investor_id == Investor.id)
         .outerjoin(wd, wd.c.investor_id == Investor.id)
-        .outerjoin(pend, pend.c.investor_id == Investor.id)
+        .outerjoin(pend, pend.c.account_id == Investor.account_id)
         .subquery()
     )
 

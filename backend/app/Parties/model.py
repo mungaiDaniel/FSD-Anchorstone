@@ -368,6 +368,43 @@ class Account(Base, db.Model):
                 "status": self.status, "opened_on": iso(self.opened_on), "closed_on": iso(self.closed_on)}
 
 
+HOLD_PENDING_WITHDRAWAL = "pending_withdrawal"
+HOLD_REASONS = ("loan_lien", "legal", "written_off_recovery", HOLD_PENDING_WITHDRAWAL)
+
+
+class AccountHold(Base, db.Model):
+    """Money set aside on an account (02 §1.2): it stays in the balance but not in the available
+    balance until released. A hold is placed once and released once; a DB trigger refuses any other
+    change, and deleting one."""
+    __tablename__ = "account_holds"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_account_holds_amount_positive"),
+        CheckConstraint(_in("reason", HOLD_REASONS), name="ck_account_holds_reason"),
+        CheckConstraint("(released_at IS NULL) = (released_by IS NULL)", name="ck_account_holds_released"),
+        CheckConstraint("(reference_type IS NULL) = (reference_id IS NULL)", name="ck_account_holds_reference"),
+        Index("uq_account_holds_reference", "reason", "reference_type", "reference_id", unique=True,
+              postgresql_where=text("reference_id IS NOT NULL")),
+        Index("ix_account_holds_active", "account_id", postgresql_where=text("released_at IS NULL")),
+    )
+
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False, index=True)
+    amount = Column(Numeric(20, 2), nullable=False)
+    reason = Column(String(24), nullable=False)
+    reference_type = Column(String(30), nullable=True)
+    reference_id = Column(Integer, nullable=True)
+    placed_by = Column(String(120), nullable=False)
+    placed_at = Column(DateTime(timezone=True), nullable=False)
+    released_by = Column(String(120), nullable=True)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "account_id": self.account_id, "amount": as_str(self.amount),
+                "reason": self.reason, "reference_type": self.reference_type, "reference_id": self.reference_id,
+                "placed_by": self.placed_by, "placed_at": iso(self.placed_at),
+                "released_by": self.released_by, "released_at": iso(self.released_at)}
+
+
 # ── Screening (KYC-06) and PEP (KYC-07) ────────────────────────────────────
 
 WATCHLISTS = ("internal_blacklist", "pep", "sanctions_un")
