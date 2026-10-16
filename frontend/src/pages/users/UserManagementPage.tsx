@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Copy, KeyRound, UserPlus } from "lucide-react";
+import { Copy, KeyRound, LockOpen, UserPlus } from "lucide-react";
 import { Card, EmptyState, Field, LoadingRow, PageHeader } from "@/components/ui/Page";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/data/StatusBadge";
@@ -8,7 +8,7 @@ import { userService } from "@/services";
 import { useAuth } from "@/context/AuthContext";
 import type { User, UserRole } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/constants";
-import { apiErrorMessage, formatDate } from "@/lib/utils";
+import { apiErrorMessage, formatDate, formatDateTime } from "@/lib/utils";
 
 const ROLE_HELP: Record<UserRole, string> = {
   user: "Adds investors, records deposits and withdrawal requests.",
@@ -137,11 +137,22 @@ export default function UserManagementPage() {
                     {u.must_change_password && u.status === "active" && (
                       <div style={{ fontSize: 11.5, color: "var(--color-text-tertiary)" }}>Hasn't set a password yet</div>
                     )}
+                    {u.locked_until && (
+                      <div style={{ fontSize: 11.5, color: "var(--color-destructive)" }}>
+                        Sign-in locked until {formatDateTime(u.locked_until)}
+                      </div>
+                    )}
                   </td>
                   <td style={{ fontSize: 13 }}>{formatDate(u.created)}</td>
                   <td className="text-end text-nowrap">
                     {!isSelf(u) && (
                       <>
+                        {u.locked_until && (
+                          <button className="btn btn-sm btn-outline-secondary me-1 d-inline-flex align-items-center gap-1"
+                            onClick={() => run(() => userService.unlock(u.id))}>
+                            <LockOpen size={13} /> Unlock
+                          </button>
+                        )}
                         <button className="btn btn-sm btn-outline-secondary me-1 d-inline-flex align-items-center gap-1" onClick={() => reset(u)}>
                           <KeyRound size={13} /> Reset password
                         </button>

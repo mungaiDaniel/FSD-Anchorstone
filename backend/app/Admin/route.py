@@ -6,14 +6,15 @@ in app/auth.py). Password resets work the same way.
 """
 import secrets
 
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 from sqlalchemy import func
 
+from app.Admin import service as login_protection
 from app.Admin.model import ROLE_LEVELS, USER_STATUSES, User
-from app.auth import current_user, password_change_endpoint, super_admin_required
+from app.auth import actor_email, admin_required, current_user, password_change_endpoint, super_admin_required
 from app.database.database import db
-from app.utils.audit_log import create_audit_log
-from app.utils.dates import utcnow
+from app.utils.audit_log import create_audit_log, get_client_ip
+from app.utils.dates import iso, utcnow
 from app.utils.http import Conflict, NotFound, ValidationError, error, ok
 
 user_v1 = Blueprint("user_v1", __name__)
@@ -65,11 +66,28 @@ def login():
     if not email or not password:
         raise ValidationError("Email and password are required.")
 
+    now, ip = utcnow(), get_client_ip()
+    login_protection.serialize(email)
+    refused = login_protection.refusal(email, ip, now)
+    if refused is not None:
+        login_protection.record_blocked(email, ip, now)
+        db.session.commit()
+        code, message = refused
+        return error(message, 429, code=code)
+
     user = User.query.filter(func.lower(User.email) == email).first()
     # Same response for unknown email and wrong password, so the login form
     # can't be used to discover which emails have accounts.
     if user is None or not user.verify_password_hash(password):
+        locked = login_protection.record_failure(email, ip, user, now)
+        db.session.commit()
+        if locked:
+            return error(login_protection.ACCOUNT_LOCKED_MESSAGE.format(
+                minutes=current_app.config["LOGIN_LOCK_MINUTES"]), 429, code="ACCOUNT_LOCKED")
         return error("Invalid email or password.", 401)
+
+    login_protection.record_success(email, ip, now)
+    db.session.commit()
     if user.status != "active":
         return error("This account has been disabled. Contact your administrator.", 403)
 
@@ -114,7 +132,8 @@ def change_own_password():
 @super_admin_required
 def list_users():
     users = User.query.order_by(User.created.desc()).all()
-    return ok([u.to_dict() for u in users])
+    locked = login_protection.locked_until_by_email([u.email.lower() for u in users])
+    return ok([{**u.to_dict(), "locked_until": iso(locked.get(u.email.lower()))} for u in users])
 
 
 @user_v1.post("/api/v1/users")
@@ -198,6 +217,15 @@ def reset_password(user_id):
     create_audit_log("RESET_PASSWORD", target_type="user", target_id=user.id, target_name=user.email)
     return ok({"user": user.to_dict(), "temporary_password": temporary_password},
               f"Password reset for {user.email}.")
+
+
+@user_v1.post("/api/v1/users/<int:user_id>/unlock")
+@admin_required
+def unlock_account(user_id):
+    """Lift a sign-in lockout early (admins and super admins)."""
+    user = _get_user(user_id)
+    login_protection.unlock(user, actor_email())
+    return ok({**user.to_dict(), "locked_until": None}, f"{user.email} can sign in again.")
 
 
 @user_v1.delete("/api/v1/users/<int:user_id>")

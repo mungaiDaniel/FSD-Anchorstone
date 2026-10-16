@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from flask_jwt_extended import create_access_token
 from passlib.handlers.md5_crypt import md5_crypt
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Integer, String, true
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Index, Integer, String, true
 from werkzeug.security import check_password_hash as wz_check_password_hash
 from werkzeug.security import generate_password_hash as wz_generate_password_hash
 
@@ -77,3 +77,38 @@ class User(Base, db.Model):
             "password_changed_at": self.password_changed_at.isoformat() if self.password_changed_at else None,
             "created": self.created.isoformat() if self.created else None,
         }
+
+
+class LoginAttempt(Base, db.Model):
+    """Every sign-in attempt, kept in the database so the limits hold across
+    gunicorn workers. outcome: success | failed (wrong email or password) |
+    blocked (refused by a lockout or the per-IP limit, password not checked)."""
+
+    __tablename__ = "login_attempts"
+    __table_args__ = (
+        CheckConstraint("outcome IN ('success', 'failed', 'blocked')", name="ck_login_attempts_outcome"),
+        Index("ix_login_attempts_email_time", "email", "attempted_at"),
+        Index("ix_login_attempts_ip_time", "ip_address", "attempted_at"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(150), nullable=False)  # as typed, lower-cased; may not be an account
+    ip_address = Column(String(45), nullable=False)
+    outcome = Column(String(10), nullable=False)
+    attempted_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class AccountLockout(Base, db.Model):
+    """Per-email lockout. Keyed by the email typed, not the user id, so an
+    unknown email locks exactly like a real one and the login form can't be
+    used to discover which emails have accounts.
+
+    Failures are counted only after counting_from, which moves forward when an
+    account locks or an admin unlocks it, so each lock needs 5 fresh failures."""
+
+    __tablename__ = "account_lockouts"
+
+    email = Column(String(150), primary_key=True)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
+    counting_from = Column(DateTime(timezone=True), nullable=True)
+    unlocked_by = Column(String(120), nullable=True)

@@ -56,6 +56,7 @@ export const API = {
   SET_USER_ROLE: (id: number) => `/users/${id}/role`,
   SET_USER_STATUS: (id: number) => `/users/${id}/status`,
   RESET_USER_PASSWORD: (id: number) => `/users/${id}/reset-password`,
+  UNLOCK_USER: (id: number) => `/users/${id}/unlock`,
 
   INVESTORS: "/investors",
   INVESTOR: (id: number) => `/investors/${id}`,

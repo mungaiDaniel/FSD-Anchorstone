@@ -33,6 +33,8 @@ export interface User {
   must_change_password: boolean;
   password_changed_at: string | null;
   created: string;
+  /** Set while sign-in is locked after too many failed attempts (users list only). */
+  locked_until?: string | null;
 }
 
 export interface UserWithTemporaryPassword {

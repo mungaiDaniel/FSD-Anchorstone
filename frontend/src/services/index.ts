@@ -88,6 +88,7 @@ export const userService = {
   setStatus: (id: number, status: UserStatus) => send<User>("patch", API.SET_USER_STATUS(id), { status }),
   setRole: (id: number, role: UserRole) => send<User>("patch", API.SET_USER_ROLE(id), { role }),
   resetPassword: (id: number) => send<UserWithTemporaryPassword>("post", API.RESET_USER_PASSWORD(id)),
+  unlock: (id: number) => send<User>("post", API.UNLOCK_USER(id)),
   delete: (id: number) => send("delete", API.USER_BY_ID(id)),
 };
 

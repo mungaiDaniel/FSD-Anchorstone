@@ -17,6 +17,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.database.database import db
 from config import get_config
@@ -29,7 +30,7 @@ migrate = Migrate()
 
 def _import_models():
     # Registers every table on db.metadata (for Alembic and relationships).
-    from app.Admin.model import User  # noqa: F401
+    from app.Admin.model import AccountLockout, LoginAttempt, User  # noqa: F401
     from app.Backup.model import BackupLog  # noqa: F401
     from app.Emails.model import EmailAttachment, OutboxEmail  # noqa: F401
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
@@ -60,6 +61,9 @@ def create_app(config_name: str | None = None) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config)
     _check_secrets(app, env_name)
+    if app.config["TRUSTED_PROXY_COUNT"] > 0:
+        # Only then is X-Forwarded-For believed; request.remote_addr becomes the real client.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=app.config["TRUSTED_PROXY_COUNT"], x_proto=1)
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=app.config["JWT_ACCESS_TOKEN_HOURS"])
     # Header only: a token in the URL would end up in server and proxy logs.
     app.config["JWT_TOKEN_LOCATION"] = ["headers"]

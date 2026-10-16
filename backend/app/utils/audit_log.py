@@ -69,16 +69,14 @@ class AuditLog(Base, db.Model):
 
 def get_client_ip() -> str:
     """
-    Extract client IP address from request, handling proxies.
-    Respects X-Forwarded-For header for load-balanced environments.
+    The client's IP address. X-Forwarded-For is only honoured through ProxyFix
+    for the TRUSTED_PROXY_COUNT proxies configured in main.py; reading the
+    header directly would let any client choose its own IP (and dodge the
+    per-IP sign-in limit).
     """
     if not has_request_context():
         return '127.0.0.1'
-
-    if request.environ.get('HTTP_X_FORWARDED_FOR'):
-        # X-Forwarded-For header (load balancer, proxy)
-        return request.environ.get('HTTP_X_FORWARDED_FOR').split(',')[0].strip()
-    return request.environ.get('REMOTE_ADDR', 'UNKNOWN')
+    return request.remote_addr or 'UNKNOWN'
 
 
 def get_user_id() -> Optional[int]:

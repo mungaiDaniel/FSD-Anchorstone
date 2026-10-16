@@ -79,6 +79,17 @@ class BaseConfig:
 
     JWT_ACCESS_TOKEN_HOURS = _env_int("JWT_ACCESS_TOKEN_HOURS", 12)
 
+    # Sign-in protection (app/Admin/service.py). Counters are kept in PostgreSQL.
+    LOGIN_MAX_FAILURES = _env_int("LOGIN_MAX_FAILURES", 5)          # per email ...
+    LOGIN_WINDOW_MINUTES = _env_int("LOGIN_WINDOW_MINUTES", 15)     # ... within this window
+    LOGIN_LOCK_MINUTES = _env_int("LOGIN_LOCK_MINUTES", 15)         # then locked this long
+    LOGIN_IP_MAX_FAILURES = _env_int("LOGIN_IP_MAX_FAILURES", 20)   # per IP within the window
+    # Reverse proxies in front of the app (nginx, load balancer) whose
+    # X-Forwarded-For we trust. 0 = none: the connecting address is the client.
+    # Set it to the real number in production, or every user shares the
+    # proxy's IP for the per-IP limit and the audit log.
+    TRUSTED_PROXY_COUNT = _env_int("TRUSTED_PROXY_COUNT", 0)
+
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
