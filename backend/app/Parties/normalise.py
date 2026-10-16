@@ -36,7 +36,7 @@ def normalise_email(value: str | None) -> str | None:
 
 
 def normalise_phone(value: str | None) -> str | None:
-    """Kenyan numbers to E.164 (+2547…, +2541…). None when it can't be read as one."""
+    """Kenyan numbers to E.164 (+2547…, +2541…, landlines +25420…). None when it can't be read as one."""
     digits = re.sub(r"[\s\-().]", "", value or "")
     if not digits:
         return None
@@ -45,9 +45,9 @@ def normalise_phone(value: str | None) -> str | None:
         return f"+{rest}" if rest.isdigit() and 8 <= len(rest) <= 15 else None
     if not digits.isdigit():
         return None
-    if len(digits) == 10 and digits[0] == "0" and digits[1] in "71":
+    if len(digits) == 10 and digits[0] == "0" and digits[1] != "0":  # mobile 07…/01…, landline 020…, 041…
         return f"+254{digits[1:]}"
-    if len(digits) == 12 and digits.startswith("254") and digits[3] in "71":
+    if len(digits) == 12 and digits.startswith("254") and digits[3] != "0":
         return f"+{digits}"
     if len(digits) == 9 and digits[0] in "71":
         return f"+254{digits}"

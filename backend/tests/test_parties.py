@@ -321,3 +321,13 @@ def test_create_is_audited(staff):
     row = db.session.execute(text("SELECT action, target_name, user_email FROM audit_logs "
                                   "WHERE action = 'CREATE_PARTY'")).one()
     assert row == ("CREATE_PARTY", jane["party_no"], "staff@anchorstone.test")
+
+
+def test_phone_numbers_normalised_for_duplicate_checks():
+    from app.Parties.normalise import normalise_phone
+
+    assert normalise_phone("0712 345 678") == normalise_phone("+254 712 345 678") == "+254712345678"
+    assert normalise_phone("0110 123 456") == "+254110123456"
+    assert normalise_phone("020 444 5555") == normalise_phone("254204445555") == "+254204445555"
+    assert normalise_phone("712345678") == "+254712345678"
+    assert normalise_phone("not a phone") is None and normalise_phone("0012") is None

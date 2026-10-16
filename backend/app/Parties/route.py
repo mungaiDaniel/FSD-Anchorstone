@@ -4,6 +4,7 @@ Clients (parties).
     GET   /api/v1/parties                         ?search ?type ?kyc_status ?role
     POST  /api/v1/parties                         individual or organisation
     GET   /api/v1/parties/<id>
+    GET   /api/v1/parties/<id>/overview           the single client view (KYC-09)
     PATCH /api/v1/parties/<id>                    direct fields save; identity/bank/payout → party.change
     POST  /api/v1/parties/<id>/relationships      next of kin, director, guarantor …
     POST  /api/v1/parties/<id>/relationships/<rid>/end
@@ -59,6 +60,14 @@ def create_party():
 @requires("party.view")
 def get_party(party_id):
     return ok(service.party_detail(service.get_party(party_id)))
+
+
+@parties_v1.get("/api/v1/parties/<int:party_id>/overview")
+@requires("party.view")
+def party_overview(party_id):
+    from app.Parties.overview import overview
+
+    return ok(overview(service.get_party(party_id), current_user()))
 
 
 @parties_v1.patch("/api/v1/parties/<int:party_id>")

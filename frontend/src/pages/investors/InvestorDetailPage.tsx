@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowDownToLine, ArrowUpFromLine, ChevronLeft, FileText, Mail, Pencil } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ChevronLeft, Contact, FileText, Mail, Pencil } from "lucide-react";
 import { Card, EmptyState, PageHeader, Stat } from "@/components/ui/Page";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/data/StatusBadge";
@@ -13,7 +13,7 @@ import {
   RequestWithdrawalModal,
   ReverseDepositModal,
 } from "@/components/transactions/TransactionModals";
-import { emailService, interestService, investorService } from "@/services";
+import { emailService, interestService, investorService, partyService } from "@/services";
 import { useAuth } from "@/context/AuthContext";
 import type { Deposit, InterestPayout, InvestorListItem, InvestorSummary, Ledger, OutboxEmail, Withdrawal } from "@/lib/types";
 import { PAYMENT_METHOD_LABELS, ROUTES } from "@/lib/constants";
@@ -48,6 +48,11 @@ export default function InvestorDetailPage() {
   const [approveTarget, setApproveTarget] = useState<Withdrawal | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Withdrawal | null>(null);
   const [saving, setSaving] = useState(false);
+  const [clientId, setClientId] = useState<number | null>(null);
+
+  useEffect(() => {
+    partyService.investorParty(id).then((r) => setClientId(r.party_id)).catch(() => setClientId(null));
+  }, [id]);
 
   const load = useCallback(async () => {
     try {
@@ -127,6 +132,11 @@ export default function InvestorDetailPage() {
                   <ArrowUpFromLine size={14} /> Record withdrawal
                 </button>
               </>
+            )}
+            {clientId !== null && (
+              <Link to={ROUTES.CLIENT_DETAIL(clientId)} className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+                <Contact size={14} /> Client record
+              </Link>
             )}
             {isAdmin && (
               <button className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onClick={() => setModal("email")}>

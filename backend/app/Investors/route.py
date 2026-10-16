@@ -101,3 +101,15 @@ def investor_emails(investor_id):
     rows = OutboxEmail.query.filter(OutboxEmail.investor_id == investor_id).order_by(
         OutboxEmail.queued_at.desc()).limit(200).all()
     return ok([e.to_dict() for e in rows])
+
+
+@investors_v1.get("/api/v1/investors/<int:investor_id>/party")
+@requires("investor.view")
+def investor_party(investor_id):
+    """The client record behind an investor (kept out of the investor response, which is unchanged)."""
+    from app.Parties.model import Party
+    from app.database.database import db
+
+    investor = service.get_investor(investor_id)
+    party = db.session.get(Party, investor.party_id)
+    return ok({"party_id": party.id, "party_no": party.party_no, "account_id": investor.account_id})

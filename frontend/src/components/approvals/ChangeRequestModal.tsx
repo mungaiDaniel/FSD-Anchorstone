@@ -4,6 +4,7 @@ import { Ban, Check, CornerUpLeft, RotateCcw, X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Actor, Field, Stat } from "@/components/ui/Page";
 import { StatusBadge } from "@/components/data/StatusBadge";
+import { PartyChangeDiff } from "@/components/approvals/PartyChangeDiff";
 import { approvalService } from "@/services";
 import { useAuth } from "@/context/AuthContext";
 import { REQUEST_TYPE_LABELS } from "@/lib/constants";
@@ -169,15 +170,19 @@ export function ChangeRequestModal({ id, onClose, onDone }: { id: number | null;
           )}
           {cr.error && <div className="alert alert-warning py-2" style={{ fontSize: 13 }}>{cr.error}</div>}
 
-          <p className="app-section-label mb-1">Details</p>
-          <dl className="tw:mb-3 tw:rounded-lg tw:border tw:border-border-subtle tw:bg-bg-surface-alt tw:px-3 tw:py-2" style={{ fontSize: 13 }}>
-            {Object.entries(cr.payload).map(([k, v]) => (
-              <div key={k} className="d-flex gap-3 tw:py-0.5">
-                <dt className="fw-normal tw:w-36 tw:shrink-0 tw:text-text-tertiary">{k}</dt>
-                <dd className="mb-0 font-tabular tw:break-all tw:text-text-primary">{showValue(v)}</dd>
-              </div>
-            ))}
-          </dl>
+          {cr.request_type === "party.change" && cr.entity_id ? <PartyChangeDiff cr={cr} /> : (
+            <>
+              <p className="app-section-label mb-1">Details</p>
+              <dl className="tw:mb-3 tw:rounded-lg tw:border tw:border-border-subtle tw:bg-bg-surface-alt tw:px-3 tw:py-2" style={{ fontSize: 13 }}>
+                {Object.entries(cr.payload).map(([k, v]) => (
+                  <div key={k} className="d-flex gap-3 tw:py-0.5">
+                    <dt className="fw-normal tw:w-36 tw:shrink-0 tw:text-text-tertiary">{k}</dt>
+                    <dd className="mb-0 font-tabular tw:break-all tw:text-text-primary">{showValue(v)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          )}
 
           <p className="app-section-label mb-2">History</p>
           <div className="mb-3"><History events={cr.events ?? []} /></div>

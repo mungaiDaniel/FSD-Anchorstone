@@ -22,6 +22,10 @@ const AuditLogPage = lazy(() => import("@/pages/audit/AuditLogPage"));
 const BackupsPage = lazy(() => import("@/pages/backups/BackupsPage"));
 const ReportsPage = lazy(() => import("@/pages/reports/ReportsPage"));
 const ApprovalsPage = lazy(() => import("@/pages/approvals/ApprovalsPage"));
+const ClientListPage = lazy(() => import("@/pages/clients/ClientListPage"));
+const ClientFormPage = lazy(() => import("@/pages/clients/ClientFormPage"));
+const ClientDetailPage = lazy(() => import("@/pages/clients/ClientDetailPage"));
+const WatchlistPage = lazy(() => import("@/pages/clients/WatchlistPage"));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 
 function PageLoader() {
@@ -65,6 +69,10 @@ const routes: RouteObject[] = [
       { path: "/interest/periods/:id", element: withSuspense(InterestPeriodPage) },
       { path: ROUTES.EMAILS, element: withSuspense(EmailsPage) },
       { path: ROUTES.APPROVALS, element: withSuspense(ApprovalsPage) },
+      { path: ROUTES.CLIENTS, element: withSuspense(ClientListPage) },
+      { path: ROUTES.CLIENT_NEW, element: withSuspense(ClientFormPage) },
+      { path: "/clients/:id", element: withSuspense(ClientDetailPage) },
+      { path: "/clients/:id/edit", element: withSuspense(ClientFormPage) },
       { path: ROUTES.SETTINGS, element: withSuspense(SettingsPage) },
       { path: ROUTES.REPORTS, element: withSuspense(ReportsPage) },
     ],
@@ -76,7 +84,10 @@ const routes: RouteObject[] = [
         <AppShell />
       </AdminRoute>
     ),
-    children: [{ path: ROUTES.AUDIT_LOG, element: withSuspense(AuditLogPage) }],
+    children: [
+      { path: ROUTES.AUDIT_LOG, element: withSuspense(AuditLogPage) },
+      { path: ROUTES.WATCHLIST, element: withSuspense(WatchlistPage) },
+    ],
   },
 
   {
