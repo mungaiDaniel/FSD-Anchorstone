@@ -139,6 +139,12 @@ Propose a recommended default.
   - **Brand tokens** work as Tailwind colours: `tw:bg-brand-400`, `tw:text-text-tertiary`, `tw:bg-warning-bg`.
   - **Cascade:** Bootstrap and the app's own CSS share the `ui` layer, and `tw:` utilities sit above it, so a `tw:` class overrides a component style. Bootstrap's `!important` utilities (`.shadow`, `.d-flex` …) still win, so don't combine one with a `tw:` class for the same property.
   - **`cn()`** only joins class names (`clsx`). There is no `tailwind-merge`.
+- **List pages reuse the shared table pieces** in `components/ui/Page.tsx`:
+  - `LoadingRow` (placeholder rows), `EmptyState` (icon, title, message, action) and `Pagination`.
+  - `SearchField` for search boxes and `SegmentedTabs` for a table's main filter.
+  - `InvestorCell` (initials, name, client code) and `Actor` (who did it, short form).
+  - Row actions use `app-btn-ghost` or `app-btn-ghost-danger` so long tables aren't a wall of buttons.
+- **List loads use `useRequestGuard`** (`lib/useRequestGuard.ts`), so a slow response for an old filter can't replace the rows on screen.
 
 ## Commands
 

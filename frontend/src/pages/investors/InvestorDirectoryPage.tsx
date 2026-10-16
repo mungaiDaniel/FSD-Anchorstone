@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FileText, Search, UserPlus, X } from "lucide-react";
+import { FileText, UserPlus, Users, X } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, LoadingRow, PageHeader, Pagination } from "@/components/ui/Page";
+import { EmptyState, InvestorCell, LoadingRow, PageHeader, Pagination, SearchField } from "@/components/ui/Page";
 import { StatusBadge } from "@/components/data/StatusBadge";
 import { Modal } from "@/components/ui/Modal";
 import { emailService, investorService } from "@/services";
@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { InvestorListItem, Paginated, RecipientSelection } from "@/lib/types";
 import { ROUTES } from "@/lib/constants";
 import { apiErrorMessage, formatKES, newRequestKey } from "@/lib/utils";
+import { useRequestGuard } from "@/lib/useRequestGuard";
 
 const PER_PAGE = 25;
 
@@ -35,21 +36,24 @@ export default function InvestorDirectoryPage() {
   const [generating, setGenerating] = useState(false);
   const [requestKey, setRequestKey] = useState(newRequestKey);
   const [reloadTick, setReloadTick] = useState(0);
+  const startRequest = useRequestGuard();
 
   useEffect(() => {
     setLoading(true);
     const t = window.setTimeout(() => {
+      const isLatest = startRequest();
       investorService
         .list({ search: search || undefined, status: status || undefined, page, per_page: PER_PAGE })
         .then((d) => {
+          if (!isLatest()) return;
           setData(d);
           setError(null);
         })
-        .catch((err) => setError(apiErrorMessage(err)))
-        .finally(() => setLoading(false));
+        .catch((err) => isLatest() && setError(apiErrorMessage(err)))
+        .finally(() => isLatest() && setLoading(false));
     }, 250);
     return () => window.clearTimeout(t);
-  }, [search, status, page, reloadTick]);
+  }, [search, status, page, reloadTick, startRequest]);
 
   // Changing the filter changes who "all" means: start the selection over.
   const changeFilter = (fn: () => void) => {
@@ -98,7 +102,7 @@ export default function InvestorDirectoryPage() {
     [sel, search, status],
   );
 
-  const cols = isAdmin ? 8 : 7;
+  const cols = isAdmin ? 7 : 6;
 
   return (
     <div className="app-page">
@@ -124,11 +128,9 @@ export default function InvestorDirectoryPage() {
       <div className="card shadow">
         <div className="card-body">
           <div className="d-flex flex-wrap gap-2 mb-3">
-            <div className="position-relative flex-grow-1" style={{ minWidth: 220 }}>
-              <Search size={14} className="position-absolute" style={{ left: 12, top: 11, color: "var(--color-text-tertiary)" }} />
-              <input className="form-control ps-5" placeholder="Search name, client code, email, phone or ID" value={search}
-                onChange={(e) => changeFilter(() => setSearch(e.target.value))} aria-label="Search investors" />
-            </div>
+            <SearchField className="flex-grow-1" value={search} label="Search investors"
+              placeholder="Search name, client code, email, phone or ID"
+              onChange={(v) => changeFilter(() => setSearch(v))} />
             <select className="form-select" style={{ width: 160 }} value={status}
               onChange={(e) => changeFilter(() => setStatus(e.target.value))} aria-label="Account status">
               <option value="active">Active</option>
@@ -168,8 +170,7 @@ export default function InvestorDirectoryPage() {
                         aria-label="Select every investor on this page" disabled={pageIds.length === 0} />
                     </th>
                   )}
-                  <th>Client code</th>
-                  <th>Name</th>
+                  <th>Investor</th>
                   <th>Email</th>
                   <th>Phone</th>
                   <th className="text-end">Balance</th>
@@ -187,12 +188,15 @@ export default function InvestorDirectoryPage() {
                           onChange={() => toggle(inv.id)} aria-label={`Select ${inv.full_name}`} />
                       </td>
                     )}
-                    <td className="font-tabular">{inv.client_code}</td>
-                    <td className="fw-semibold">{inv.full_name}</td>
-                    <td>{inv.email}</td>
-                    <td className="nowrap">{inv.phone ?? "—"}</td>
-                    <td className="text-end font-tabular">{formatKES(inv.balance)}</td>
-                    <td className="text-end font-tabular">{Number(inv.pending_withdrawals) > 0 ? formatKES(inv.pending_withdrawals) : "—"}</td>
+                    <td><InvestorCell name={inv.full_name} code={inv.client_code} /></td>
+                    <td className="tw:text-text-secondary">{inv.email}</td>
+                    <td className="nowrap tw:text-text-secondary">{inv.phone ?? "—"}</td>
+                    <td className="text-end font-tabular tw:font-semibold tw:text-brand-400">{formatKES(inv.balance)}</td>
+                    <td className="text-end font-tabular">
+                      {Number(inv.pending_withdrawals) > 0
+                        ? <span className="tw:font-semibold tw:text-warning">{formatKES(inv.pending_withdrawals)}</span>
+                        : <span className="tw:text-text-disabled">—</span>}
+                    </td>
                     <td><StatusBadge status={inv.status} /></td>
                   </tr>
                 ))}
@@ -200,7 +204,8 @@ export default function InvestorDirectoryPage() {
             </table>
           </div>
           {data && data.items.length === 0 && (
-            <EmptyState message={search ? "No investors match your search." : "No investors yet."}
+            <EmptyState icon={<Users size={22} />} title={search ? "No matches" : "No investors yet"}
+              message={search ? "No investors match your search. Try a name, client code, email or phone number." : "Investors you add appear here."}
               action={!search && <Link to={ROUTES.INVESTOR_ADD} className="btn btn-sm btn-primary">Add the first investor</Link>} />
           )}
           {data && <Pagination page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} />}

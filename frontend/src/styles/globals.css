@@ -319,6 +319,31 @@ a { color: var(--color-brand-300); }
 .app-table td.text-end, .app-table td.font-tabular, .app-table td.nowrap { white-space: nowrap; }
 .app-table.table-hover > tbody tr { cursor: pointer; }
 .app-table a { color: var(--color-brand-300); text-decoration: none; font-weight: 500; }
+.app-table > tbody > tr > td { transition: background-color 0.12s ease; }
+.app-table > tbody > tr:hover > td { background-color: #F8F9FE; }
+.app-table > tbody > tr:last-child > td { border-bottom: 0; }
+
+/* Quiet row action: reads as a link until hovered, so long tables aren't a wall of buttons. */
+.btn.app-btn-ghost {
+  --bs-btn-color: var(--color-brand-300);
+  --bs-btn-border-color: transparent;
+  --bs-btn-hover-color: var(--color-brand-400);
+  --bs-btn-hover-bg: var(--color-bg-tint);
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-bg: var(--color-bg-tint);
+  --bs-btn-active-border-color: transparent;
+  --bs-btn-bg: transparent;
+}
+.btn.app-btn-ghost-danger {
+  --bs-btn-color: var(--color-destructive);
+  --bs-btn-border-color: transparent;
+  --bs-btn-hover-color: var(--color-destructive);
+  --bs-btn-hover-bg: var(--color-destructive-bg);
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-bg: var(--color-destructive-bg);
+  --bs-btn-active-border-color: transparent;
+  --bs-btn-bg: transparent;
+}
 .app-table a:hover { text-decoration: underline; }
 
 /* ══ Badges ════════════════════════════════════════════════════════════ */

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Check, FileText, Send, X } from "lucide-react";
-import { EmptyState, LoadingRow, PageHeader, Pagination } from "@/components/ui/Page";
+import { Check, FileText, Mail, RotateCcw, Send, X } from "lucide-react";
+import { Actor, EmptyState, LoadingRow, PageHeader, Pagination, SearchField, SegmentedTabs } from "@/components/ui/Page";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/data/StatusBadge";
 import { emailService } from "@/services";
@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { EmailQueueStatus, OutboxEmail, Paginated } from "@/lib/types";
 import { ROUTES } from "@/lib/constants";
 import { apiErrorMessage, formatDateTime } from "@/lib/utils";
+import { useRequestGuard } from "@/lib/useRequestGuard";
 
 const PER_PAGE = 50;
 const TYPE_LABELS: Record<string, string> = {
@@ -20,13 +21,15 @@ const TYPE_LABELS: Record<string, string> = {
   ACCOUNT_STATEMENT: "Account statement",
   AUM_REPORT: "Monthly AUM summary",
 };
-const STATUS_FILTERS = [
+type StatusFilter = "" | "pending" | "queued" | "sent" | "failed" | "cancelled";
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "", label: "All" },
   { key: "pending", label: "Awaiting confirmation" },
   { key: "queued", label: "Queued" },
   { key: "sent", label: "Sent" },
   { key: "failed", label: "Failed" },
   { key: "cancelled", label: "Suppressed / cancelled" },
-] as const;
+];
 
 /** A bulk decision waiting for the admin's second click. */
 type Pending = { confirm: boolean; ids: number[] | "all"; count: number } | null;
@@ -40,7 +43,7 @@ function badgeLabel(e: OutboxEmail) {
 export default function EmailsPage() {
   const { isAdmin } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [status, setStatusState] = useState(params.get("status") ?? "");
+  const [status, setStatusState] = useState<StatusFilter>((params.get("status") ?? "") as StatusFilter);
   const [type, setType] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -52,8 +55,9 @@ export default function EmailsPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [decision, setDecision] = useState<Pending>(null);
   const [deciding, setDeciding] = useState(false);
+  const startRequest = useRequestGuard();
 
-  const setStatus = (s: string) => {
+  const setStatus = (s: StatusFilter) => {
     setStatusState(s);
     setPage(1);
     setSelected(new Set());
@@ -61,18 +65,20 @@ export default function EmailsPage() {
   };
 
   const load = useCallback(async () => {
+    const isLatest = startRequest();
     try {
       const [list, q] = await Promise.all([
         emailService.list({ status: status || undefined, type: type || undefined, search: search || undefined, page, per_page: PER_PAGE }),
         emailService.status(),
       ]);
+      if (!isLatest()) return;
       setData(list);
       setQueue(q);
       setError(null);
     } catch (err) {
-      setError(apiErrorMessage(err));
+      if (isLatest()) setError(apiErrorMessage(err));
     }
-  }, [status, type, search, page]);
+  }, [status, type, search, page, startRequest]);
 
   useEffect(() => {
     const t = window.setTimeout(load, 250);
@@ -133,7 +139,7 @@ export default function EmailsPage() {
       return next;
     });
 
-  const cols = canSelect ? 8 : 7;
+  const cols = canSelect ? 6 : 5;
 
   return (
     <div className="app-page">
@@ -167,20 +173,19 @@ export default function EmailsPage() {
         </div>
       )}
 
-      <div className="d-flex flex-wrap gap-2 mb-3">
-        {STATUS_FILTERS.map((s) => (
-          <button key={s.key} className={`btn btn-sm ${status === s.key ? "btn-primary" : "btn-outline-secondary"}`}
-            onClick={() => setStatus(status === s.key ? "" : s.key)}>
-            {s.label} <span className="ms-1 font-tabular">{counts[s.key] ?? 0}</span>
-          </button>
-        ))}
+      <div className="mb-3">
+        <SegmentedTabs label="Email status" value={status} onChange={setStatus}
+          items={STATUS_FILTERS.map((f) => ({
+            ...f,
+            count: f.key ? (counts[f.key] ?? 0) : Object.values(counts).reduce((a, b) => a + b, 0),
+          }))} />
       </div>
 
       <div className="card shadow">
         <div className="card-body">
           <div className="d-flex flex-wrap gap-2 mb-3">
-            <input className="form-control" style={{ maxWidth: 320 }} placeholder="Recipient or subject" value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }} aria-label="Search emails" />
+            <SearchField className="flex-grow-1 tw:max-w-sm" value={search} label="Search emails"
+              placeholder="Recipient or subject" onChange={(v) => { setSearch(v); setPage(1); }} />
             <select className="form-select" style={{ width: 220 }} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} aria-label="Email type">
               <option value="">All types</option>
               {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -230,7 +235,7 @@ export default function EmailsPage() {
                         aria-label="Select every awaiting email on this page" />
                     </th>
                   )}
-                  <th>Created</th><th>Type</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Sent</th><th />
+                  <th>Created</th><th>Recipient</th><th>Subject</th><th>Status</th><th />
                 </tr>
               </thead>
               <tbody>
@@ -245,43 +250,54 @@ export default function EmailsPage() {
                         )}
                       </td>
                     )}
-                    <td className="nowrap" style={{ fontSize: 12 }}>{formatDateTime(e.queued_at)}</td>
-                    <td style={{ fontSize: 12 }}>{TYPE_LABELS[e.email_type] ?? e.email_type}</td>
-                    <td>
+                    <td className="nowrap tw:text-xs tw:text-text-secondary tw:leading-snug">
+                      {formatDateTime(e.queued_at)}
+                      <div className="tw:text-[11px] tw:text-text-tertiary">{e.sent_at ? `Sent ${formatDateTime(e.sent_at)}` : "Not sent"}</div>
+                    </td>
+                    <td className="tw:whitespace-nowrap">
                       {e.investor_id ? (
                         <Link to={ROUTES.INVESTOR_DETAIL(e.investor_id)} onClick={(ev) => ev.stopPropagation()}>{e.recipient_name ?? e.recipient_email}</Link>
                       ) : (
-                        <span>Internal (management)</span>
+                        <span className="tw:font-medium">Internal (management)</span>
                       )}
-                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{e.recipient_email}</div>
+                      <div className="tw:text-[11px] tw:text-text-tertiary">{e.recipient_email}</div>
                     </td>
-                    <td style={{ minWidth: 240 }}>{e.subject}</td>
                     <td>
+                      <div className="tw:truncate tw:max-w-[240px]" title={e.subject}>{e.subject}</div>
+                      <span className="tw:inline-block tw:mt-1 tw:whitespace-nowrap tw:rounded-md tw:bg-bg-surface-alt tw:border tw:border-border-subtle tw:px-1.5 tw:text-[10.5px] tw:font-medium tw:text-text-secondary">
+                        {TYPE_LABELS[e.email_type] ?? e.email_type}
+                      </span>
+                    </td>
+                    <td className="tw:whitespace-nowrap">
                       <StatusBadge status={e.status} label={badgeLabel(e)} />
-                      {e.decided_by && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>by {e.decided_by}</div>}
+                      {e.decided_by && <div className="tw:mt-0.5"><Actor email={e.decided_by} prefix="by" /></div>}
                       {e.last_error && e.status !== "cancelled" && (
-                        <div className="text-truncate" style={{ fontSize: 11, color: "var(--color-text-tertiary)", maxWidth: 220 }} title={e.last_error}>{e.last_error}</div>
+                        <div className="tw:truncate tw:max-w-[200px] tw:text-[11px] tw:text-destructive tw:mt-0.5" title={e.last_error}>{e.last_error}</div>
                       )}
                     </td>
-                    <td className="nowrap" style={{ fontSize: 12 }}>{formatDateTime(e.sent_at)}</td>
                     <td className="text-end text-nowrap" onClick={(ev) => ev.stopPropagation()}>
                       {e.attachment_name && (
-                        <button className="btn btn-sm btn-outline-secondary me-1 d-inline-flex align-items-center gap-1"
+                        <button className="btn btn-sm app-btn-ghost me-1 d-inline-flex align-items-center" title={`Open ${e.attachment_name}`}
+                          aria-label={`Open attachment ${e.attachment_name}`}
                           onClick={() => emailService.openAttachment(e.id, e.attachment_name!).catch((err) => toast.error(apiErrorMessage(err)))}>
-                          <FileText size={13} /> PDF
+                          <FileText size={15} />
                         </button>
                       )}
                       {isAdmin && e.status === "pending" && (
                         <>
-                          <button className="btn btn-sm btn-primary me-1" onClick={() => decide(true, [e.id])}>Confirm</button>
-                          <button className="btn btn-sm btn-outline-danger" onClick={() => decide(false, [e.id])}>Suppress</button>
+                          <button className="btn btn-sm btn-primary me-1 d-inline-flex align-items-center gap-1" onClick={() => decide(true, [e.id])}>
+                            <Check size={13} /> Confirm
+                          </button>
+                          <button className="btn btn-sm app-btn-ghost-danger" onClick={() => decide(false, [e.id])}>Suppress</button>
                         </>
                       )}
                       {isAdmin && (e.status === "failed" || (e.status === "cancelled" && e.email_type !== "ACCOUNT_STATEMENT")) && (
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => act(() => emailService.retry(e.id))}>Retry</button>
+                        <button className="btn btn-sm app-btn-ghost d-inline-flex align-items-center gap-1" onClick={() => act(() => emailService.retry(e.id))}>
+                          <RotateCcw size={13} /> Retry
+                        </button>
                       )}
                       {isAdmin && e.status === "queued" && (
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => act(() => emailService.cancel(e.id))}>Cancel</button>
+                        <button className="btn btn-sm app-btn-ghost-danger" onClick={() => act(() => emailService.cancel(e.id))}>Cancel</button>
                       )}
                     </td>
                   </tr>
@@ -290,7 +306,8 @@ export default function EmailsPage() {
             </table>
           </div>
           {data && data.items.length === 0 && (
-            <EmptyState message={status === "pending" ? "Nothing is waiting for confirmation." : "No emails match these filters."} />
+            <EmptyState icon={<Mail size={22} />} title={status === "pending" ? "All caught up" : "No emails found"}
+              message={status === "pending" ? "Nothing is waiting for confirmation." : "No emails match these filters."} />
           )}
           {data && <Pagination page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} />}
         </div>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowDownToLine, Search } from "lucide-react";
-import { EmptyState, LoadingRow, PageHeader, Pagination } from "@/components/ui/Page";
+import { ArrowDownToLine, Undo2 } from "lucide-react";
+import { Actor, EmptyState, InvestorCell, LoadingRow, PageHeader, Pagination, SearchField } from "@/components/ui/Page";
 import { StatusBadge } from "@/components/data/StatusBadge";
 import { RecordDepositModal, ReverseDepositModal } from "@/components/transactions/TransactionModals";
 import { transactionService } from "@/services";
@@ -9,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { Deposit, Paginated } from "@/lib/types";
 import { PAYMENT_METHOD_LABELS, ROUTES } from "@/lib/constants";
 import { apiErrorMessage, formatDate, formatKES } from "@/lib/utils";
+import { useRequestGuard } from "@/lib/useRequestGuard";
 
 const PER_PAGE = 50;
 
@@ -23,16 +23,19 @@ export default function DepositsPage() {
   const [error, setError] = useState<string | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
   const [reverseTarget, setReverseTarget] = useState<Deposit | null>(null);
+  const startRequest = useRequestGuard();
 
   const load = useCallback(() => {
+    const isLatest = startRequest();
     transactionService
       .deposits({ search: search || undefined, status: status || undefined, from: from || undefined, to: to || undefined, page, per_page: PER_PAGE })
       .then((d) => {
+        if (!isLatest()) return;
         setData(d);
         setError(null);
       })
-      .catch((err) => setError(apiErrorMessage(err)));
-  }, [search, status, from, to, page]);
+      .catch((err) => isLatest() && setError(apiErrorMessage(err)));
+  }, [search, status, from, to, page, startRequest]);
 
   useEffect(() => {
     const t = window.setTimeout(load, 250);
@@ -58,11 +61,8 @@ export default function DepositsPage() {
       <div className="card shadow">
         <div className="card-body">
           <div className="d-flex flex-wrap gap-2 mb-3">
-            <div className="position-relative flex-grow-1" style={{ minWidth: 200 }}>
-              <Search size={14} className="position-absolute" style={{ left: 12, top: 11, color: "var(--color-text-tertiary)" }} />
-              <input className="form-control ps-5" placeholder="Investor name, code or email" value={search}
-                onChange={(e) => resetPage(setSearch)(e.target.value)} aria-label="Search deposits" />
-            </div>
+            <SearchField className="flex-grow-1" value={search} label="Search deposits"
+              placeholder="Investor name, code or email" onChange={resetPage(setSearch)} />
             <select className="form-select" style={{ width: 150 }} value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} aria-label="Status">
               <option value="">All statuses</option>
               <option value="posted">Posted</option>
@@ -84,22 +84,27 @@ export default function DepositsPage() {
                 {!data && !error && <LoadingRow colSpan={8} />}
                 {data?.items.map((d) => (
                   <tr key={d.id}>
-                    <td className="nowrap">{formatDate(d.value_date)}</td>
-                    <td>
-                      <Link to={ROUTES.INVESTOR_DETAIL(d.investor_id)}>{d.investor_name}</Link>
-                      <div className="font-tabular" style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{d.client_code}</div>
+                    <td className="nowrap tw:text-text-secondary">{formatDate(d.value_date)}</td>
+                    <td><InvestorCell name={d.investor_name} code={d.client_code} to={ROUTES.INVESTOR_DETAIL(d.investor_id)} /></td>
+                    <td className="font-tabular nowrap tw:text-text-secondary">{d.reference}</td>
+                    <td className="nowrap">{PAYMENT_METHOD_LABELS[d.method]}</td>
+                    <td className={`text-end font-tabular tw:font-semibold ${d.status === "reversed" ? "tw:text-text-disabled tw:line-through" : "tw:text-brand-400"}`}>
+                      {formatKES(d.amount)}
                     </td>
-                    <td className="font-tabular">{d.reference}</td>
-                    <td>{PAYMENT_METHOD_LABELS[d.method]}</td>
-                    <td className="text-end font-tabular">{formatKES(d.amount)}</td>
                     <td>
                       <StatusBadge status={d.status} />
-                      {d.reversal_reason && <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{d.reversal_reason}</div>}
+                      {d.reversal_reason && (
+                        <div className="tw:text-[11px] tw:text-text-tertiary tw:truncate tw:max-w-[140px] tw:mt-0.5" title={d.reversal_reason}>
+                          {d.reversal_reason}
+                        </div>
+                      )}
                     </td>
-                    <td style={{ fontSize: 12 }}>{d.recorded_by}</td>
+                    <td><Actor email={d.recorded_by} /></td>
                     <td className="text-end">
                       {isAdmin && d.status === "posted" && (
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => setReverseTarget(d)}>Reverse</button>
+                        <button className="btn btn-sm app-btn-ghost-danger d-inline-flex align-items-center gap-1" onClick={() => setReverseTarget(d)}>
+                          <Undo2 size={13} /> Reverse
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -107,7 +112,10 @@ export default function DepositsPage() {
               </tbody>
             </table>
           </div>
-          {data && data.items.length === 0 && <EmptyState message="No deposits match these filters." />}
+          {data && data.items.length === 0 && (
+            <EmptyState icon={<ArrowDownToLine size={22} />} title="No deposits found"
+              message={search || status || from || to ? "No deposits match these filters." : "Deposits you record appear here."} />
+          )}
           {data && <Pagination page={page} perPage={PER_PAGE} total={data.total} onPage={setPage} />}
         </div>
       </div>
