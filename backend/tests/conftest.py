@@ -33,6 +33,8 @@ _DATED_MODULES = (
     "app.Interest.statement",
     "app.Access.service",
     "app.Access.handlers",
+    "app.Settings.business",
+    "app.Settings.handlers",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
@@ -40,7 +42,7 @@ _DATED_MODULES = (
 REFERENCE_TABLES = (
     "branches",
     "departments", "permissions", "roles", "role_permissions", "transaction_limits", "sod_conflicts",
-    "approval_policies",
+    "approval_policies", "setting_versions",
 )
 
 

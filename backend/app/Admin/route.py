@@ -6,7 +6,7 @@ in app/auth.py). Password resets work the same way.
 """
 import secrets
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, request
 from sqlalchemy import func
 
 from app.Admin import service as login_protection
@@ -14,13 +14,13 @@ from app.Access.service import branch_scope
 from app.Admin.model import ROLE_LEVELS, USER_STATUSES, User
 from app.auth import actor_email, current_user, password_change_endpoint, requires, user_permissions
 from app.database.database import db
+from app.Settings import business as settings
 from app.utils.audit_log import create_audit_log, get_client_ip
 from app.utils.dates import iso, utcnow
 from app.utils.http import Conflict, NotFound, ValidationError, error, ok
 
 user_v1 = Blueprint("user_v1", __name__)
 
-MIN_PASSWORD_LENGTH = 10
 # No look-alike characters (0/O, 1/l/I) — temporary passwords are read aloud or copied by hand.
 _TEMP_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -31,8 +31,9 @@ def generate_temporary_password() -> str:
 
 
 def validate_new_password(password, *, email: str, current_hash_user: User | None = None) -> str:
-    if not isinstance(password, str) or len(password) < MIN_PASSWORD_LENGTH:
-        raise ValidationError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
+    min_length = settings.get("security.password_min_length")
+    if not isinstance(password, str) or len(password) < min_length:
+        raise ValidationError(f"Password must be at least {min_length} characters.")
     if password.strip() != password:
         raise ValidationError("Password can't start or end with a space.")
     if password.lower() == email.lower():
@@ -84,7 +85,7 @@ def login():
         db.session.commit()
         if locked:
             return error(login_protection.ACCOUNT_LOCKED_MESSAGE.format(
-                minutes=current_app.config["LOGIN_LOCK_MINUTES"]), 429, code="ACCOUNT_LOCKED")
+                minutes=settings.get("security.login_lock_minutes")), 429, code="ACCOUNT_LOCKED")
         return error("Invalid email or password.", 401)
 
     login_protection.record_success(email, ip, now)

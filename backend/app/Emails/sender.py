@@ -17,7 +17,6 @@ from sqlalchemy import select
 from app.database.database import db
 from app.Emails.model import (
     EMAIL_INTEREST_STATEMENT,
-    MAX_ATTEMPTS,
     STATUS_FAILED,
     STATUS_QUEUED,
     STATUS_SENDING,
@@ -25,6 +24,7 @@ from app.Emails.model import (
     OutboxEmail,
 )
 from app.Interest.model import InterestPayout
+from app.Settings import business as settings
 from app.utils import brand
 from app.utils.dates import utcnow
 from app.utils.email_template import attach_brand_logo, get_email_title, render_branded_email_html
@@ -90,7 +90,7 @@ def send_outbox_email(email_id: int) -> bool:
     except Exception as e:  # SMTP / PDF errors are recorded on the row, not raised
         logger.warning("Email %s failed (attempt %s): %s", email_id, email.attempts, e)
         email.last_error = str(e)[:2000]
-        email.status = STATUS_QUEUED if email.attempts < MAX_ATTEMPTS else STATUS_FAILED
+        email.status = STATUS_QUEUED if email.attempts < settings.get("email.max_attempts") else STATUS_FAILED
         db.session.commit()
         return False
     email.status = STATUS_SENT

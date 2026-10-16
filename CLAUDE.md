@@ -24,7 +24,7 @@ Propose a recommended default.
 - **Rounding** is `round_money()`, which rounds to the cent with `ROUND_HALF_UP`. It happens in the service layer at these points only:
   - **Interest:** each day's interest is summed at full precision, and the investor's month total is rounded **once** (`app/Interest/service.py`). Never round per day.
   - **Payout figures:** the average daily balance is rounded to the cent, and the effective rate is quantized to 4 decimal places.
-  - **Withholding tax:** `round_money(gross × tax_rate ÷ 100)` per payout. `net = gross − tax` is enforced by a DB check constraint. The tax rate is fixed at 0% and hidden until compliance confirms the treatment.
+  - **Withholding tax:** `round_money(gross × tax_rate ÷ 100)` per payout. `net = gross − tax` is enforced by a DB check constraint. The tax rate is the setting `investments.wht_rate_percent` in force on the month's last day: 0% and hidden until compliance confirms the treatment.
 - **JSON** sends money as strings via `as_str()` (e.g. `"1234.50"`). Text formatting uses `fmt_kes()`.
 - **Frontend:** amounts are sent as strings. `Number()` is used only for display and UI pre-checks; the server is the authority. Excel exports convert to float only at the spreadsheet cell (`app/Reports/excel.py`).
 
@@ -59,6 +59,13 @@ Propose a recommended default.
   - Financial foreign keys use `ondelete="RESTRICT"`.
   - Balance-affecting writes take `lock_investor()` (`SELECT … FOR UPDATE`) first.
 - **The balance has one definition:** `app/Transactions/ledger.py` (posted deposits − approved withdrawals, by value date). Interest is paid out and never added to the balance.
+
+### Business rules are settings, not constants
+
+- Values the client may change (limits, rates, periods, retention …) live in `app/Settings/registry.py` and are read with `app.Settings.business.get(key, as_of=…, scope=…)`. Never hard-code one.
+- Each change is a new immutable row in `setting_versions`, made through a `settings.change` change request (`settings.change_security`, two approvers, for security keys). Nothing is backdated.
+- Event-dated values (`investments.wht_rate_percent`) are read **as of the event's business date**, so recalculating a past month reproduces it.
+- A new key needs a registry entry **and** a migration seeding version 1 with its source and evidence. `docs/architecture/08-working-assumptions.md` says what each default is and who confirms it.
 
 ### Every business action is audited
 

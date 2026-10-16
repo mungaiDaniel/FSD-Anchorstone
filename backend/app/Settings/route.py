@@ -4,10 +4,14 @@ credentials and delivery-rate controls.
 """
 from flask import Blueprint, current_app, request
 
-from app.auth import actor_email, requires
+from app.Approvals import service as approvals
+from app.auth import actor_email, current_user, requires
 from app.database.database import db
 from app.Emails.sender import build_message, mail
 from app.logic.scheduler import EMAIL_JOB_ID, next_run
+from app.Settings import business
+from app.Settings.handlers import request_type_for
+from app.Settings.registry import SOURCES
 from app.Settings.service import get_effective_email_settings, save_email_queue_settings, save_email_settings
 from app.utils.http import ValidationError, ok
 
@@ -81,3 +85,28 @@ def patch_queue_settings():
         raise ValidationError("interval_minutes must be between 1 and 1440.")
     save_email_queue_settings(current_app, db.session, batch_size, interval, updated_by=actor_email())
     return ok(message=f"Email queue updated: up to {batch_size} emails every {interval} minute(s).")
+
+
+# ── Business rules (versioned settings, changed under maker-checker) ──────
+
+
+@settings_v1.get("/api/v1/settings/business")
+@requires("settings.business.view")
+def list_business_settings():
+    """Every business-rule setting with its value today and history.
+    ?source=working_assumption lists the values still to be confirmed (go-live report)."""
+    source = request.args.get("source")
+    if source and source not in SOURCES:
+        raise ValidationError(f"source must be one of: {', '.join(SOURCES)}.")
+    return ok(business.overview(source))
+
+
+@settings_v1.post("/api/v1/settings/business/<key>")
+@requires("settings.business.edit")
+def propose_business_setting(key):
+    data = request.get_json(silent=True) or {}
+    payload = {k: data.get(k) for k in ("value", "effective_from", "scope_type", "scope_id", "source", "evidence")
+               if k in data}
+    payload["key"] = key
+    cr = approvals.submit(request_type_for(key), payload, current_user(), data.get("reason"))
+    return ok(cr.to_dict(approvals.summary(cr)), "Submitted for approval. The new value applies once approved.", 201)

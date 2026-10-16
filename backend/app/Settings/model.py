@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy.dialects.postgresql import JSONB
 from base_model import Base
 from app.database.database import db
 
@@ -42,3 +43,46 @@ class EmailSettings(Base, db.Model):
             session.add(row)
             session.commit()
         return row
+
+
+class SettingVersion(Base, db.Model):
+    """
+    One immutable, effective-dated value of a business-rule setting
+    (app/Settings/registry.py). A change is a new row, made through a change
+    request; the database refuses UPDATE and DELETE.
+    """
+
+    __tablename__ = "setting_versions"
+    __table_args__ = (
+        CheckConstraint("scope_type IN ('global', 'branch', 'product')", name="ck_setting_versions_scope_type"),
+        CheckConstraint("(scope_type = 'global') = (scope_id IS NULL)", name="ck_setting_versions_scope_id"),
+        CheckConstraint("source IN ('working_assumption', 'client_confirmed', 'internal_decision')",
+                        name="ck_setting_versions_source"),
+        CheckConstraint("lower(approved_by) <> lower(created_by)", name="ck_setting_versions_maker_not_checker"),
+        Index("uq_setting_versions_key_scope_date", "key", "scope_type", text("coalesce(scope_id, 0)"),
+              "effective_from", unique=True),
+        Index("ix_setting_versions_lookup", "key", "scope_type", "scope_id", "effective_from"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    key = Column(String(80), nullable=False)
+    scope_type = Column(String(10), nullable=False, default="global", server_default="global")
+    scope_id = Column(Integer, nullable=True)
+    value = Column(JSONB, nullable=False)
+    effective_from = Column(Date, nullable=False)
+    version_no = Column(Integer, nullable=False)
+    source = Column(String(20), nullable=False)
+    evidence = Column(Text, nullable=True)  # WA ref, questionnaire answer, document id or meeting note
+    reason = Column(Text, nullable=True)
+    change_request_id = Column(Integer, ForeignKey("change_requests.id", ondelete="RESTRICT"), nullable=True)
+    created_by = Column(String(120), nullable=False)
+    approved_by = Column(String(120), nullable=False)
+    approved_at = Column(DateTime(timezone=True), nullable=False)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "key": self.key, "scope_type": self.scope_type, "scope_id": self.scope_id,
+                "value": self.value, "effective_from": self.effective_from.isoformat(),
+                "version_no": self.version_no, "source": self.source, "evidence": self.evidence,
+                "reason": self.reason, "change_request_id": self.change_request_id,
+                "created_by": self.created_by, "approved_by": self.approved_by,
+                "approved_at": self.approved_at.isoformat() if self.approved_at else None}

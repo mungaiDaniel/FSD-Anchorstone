@@ -80,6 +80,8 @@ class BaseConfig:
     JWT_ACCESS_TOKEN_HOURS = _env_int("JWT_ACCESS_TOKEN_HOURS", 12)
 
     # Sign-in protection (app/Admin/service.py). Counters are kept in PostgreSQL.
+    # Sign-in limits seed the security.login_* settings when that migration first runs;
+    # after that the settings (changed under maker-checker) are what count.
     LOGIN_MAX_FAILURES = _env_int("LOGIN_MAX_FAILURES", 5)          # per email ...
     LOGIN_WINDOW_MINUTES = _env_int("LOGIN_WINDOW_MINUTES", 15)     # ... within this window
     LOGIN_LOCK_MINUTES = _env_int("LOGIN_LOCK_MINUTES", 15)         # then locked this long

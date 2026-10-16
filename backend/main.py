@@ -41,7 +41,7 @@ def _import_models():
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
     from app.Investors.model import Investor  # noqa: F401
     from app.Reports.model import ReportSchedule  # noqa: F401
-    from app.Settings.model import EmailSettings  # noqa: F401
+    from app.Settings.model import EmailSettings, SettingVersion  # noqa: F401
     from app.Transactions.model import Deposit, Withdrawal  # noqa: F401
     from app.utils.audit_log import AuditLog  # noqa: F401
 

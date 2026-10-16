@@ -17,11 +17,11 @@ advisory lock, so parallel requests can't slip past the limit.
 """
 from datetime import datetime, timedelta
 
-from flask import current_app
 from sqlalchemy import func, text
 
 from app.Admin.model import AccountLockout, LoginAttempt, User
 from app.database.database import db
+from app.Settings import business as settings
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import utcnow
 from app.utils.http import Conflict
@@ -33,8 +33,17 @@ ACCOUNT_LOCKED_MESSAGE = (
 IP_LIMITED_MESSAGE = "Too many failed sign-in attempts from your network. Try again in a few minutes."
 
 
+# The limits are business-rule settings (app/Settings/registry.py), changed under maker-checker.
+_KEYS = {
+    "LOGIN_MAX_FAILURES": "security.login_max_failures",
+    "LOGIN_WINDOW_MINUTES": "security.login_window_minutes",
+    "LOGIN_LOCK_MINUTES": "security.login_lock_minutes",
+    "LOGIN_IP_MAX_FAILURES": "security.login_ip_max_failures",
+}
+
+
 def _setting(name: str) -> int:
-    return int(current_app.config[name])
+    return int(settings.get(_KEYS[name]))
 
 
 def serialize(email: str) -> None:

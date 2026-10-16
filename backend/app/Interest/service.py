@@ -45,6 +45,7 @@ from app.Interest.model import (
     InterestRate,
 )
 from app.Investors.model import Investor
+from app.Settings import business as settings
 from app.Transactions.ledger import balance_events, locked_through
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import month_bounds, parse_date, today_eat, utcnow
@@ -54,7 +55,6 @@ from app.utils.money import ZERO, as_str, fmt_kes, parse_rate_percent, round_mon
 DAY_COUNT = Decimal(365)
 HUNDRED = Decimal(100)
 # Withholding tax is not applied yet (pending compliance confirmation).
-DEFAULT_TAX_RATE_PERCENT = Decimal("0")
 
 
 @dataclass
@@ -240,7 +240,8 @@ def calculate_period(data: dict, actor: str) -> InterestPeriod:
         period.calculated_by = actor
         period.calculated_at = utcnow()
 
-    tax_rate = DEFAULT_TAX_RATE_PERCENT
+    # Withholding tax in force on the month's last day (setting investments.wht_rate_percent, WA-03).
+    tax_rate = settings.get("investments.wht_rate_percent", as_of=period.period_end)
     period.tax_rate_percent = tax_rate
     period.status = PERIOD_DRAFT
     db.session.flush()

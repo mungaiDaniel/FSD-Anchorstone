@@ -3,7 +3,7 @@ Outbox for every investor email. Replaces OFDS's separate pending_emails +
 email_logs tables with one row per email that moves through:
 
     queued → sending → sent
-                     ↘ failed (retried automatically up to MAX_ATTEMPTS, then
+                     ↘ failed (retried automatically up to the email.max_attempts setting, then
                                left for an admin to retry or cancel)
     queued → cancelled
 
@@ -40,7 +40,6 @@ STATUS_SENT = "sent"
 STATUS_FAILED = "failed"
 STATUS_CANCELLED = "cancelled"
 
-MAX_ATTEMPTS = 3
 
 
 def _utcnow():
