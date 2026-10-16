@@ -35,6 +35,7 @@ _DATED_MODULES = (
     "app.Access.handlers",
     "app.Settings.business",
     "app.Settings.handlers",
+    "app.Parties.service",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
@@ -116,6 +117,7 @@ def clean_db(app):
         for seq in _id_sequences(names):
             db.session.execute(text("SELECT setval(:s, 1, false)"), {"s": seq})
         db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
+        db.session.execute(text("ALTER SEQUENCE party_no_seq RESTART WITH 1"))
         _restore_reference_data()
         db.session.commit()
         yield

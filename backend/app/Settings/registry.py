@@ -105,6 +105,11 @@ def subset_of(*choices):
 
 
 MIME_TYPES = ("application/pdf", "image/jpeg", "image/png", "image/heic", "image/tiff")
+# Compulsory KYC details (07 Q-C1); the names are checked in app/Parties/service.py missing_fields().
+PERSON_REQUIRED_FIELDS = ("name", "id_document", "kra_pin", "date_of_birth", "mobile", "physical_address",
+                          "next_of_kin")
+ORGANISATION_REQUIRED_FIELDS = ("legal_name", "registration_no", "kra_pin", "registration_date",
+                                "director_with_id", "phone", "physical_address")
 
 DEFINITIONS = [
     # ── Security (FSD SEC-02, 07 Q-IT5). Two approvers for any change. ──
@@ -160,6 +165,14 @@ DEFINITIONS = [
                       subset_of("identity", "bank", "payout", "email", "phone", "address"), IMMEDIATE, "compliance",
                       "Investor / party details whose changes need a second person's approval. Other contact "
                       "changes save immediately and are audited.", wa_ref="WA-01", questionnaire_ref="B4"),
+    SettingDefinition("kyc.required_fields.person", "list", sorted(PERSON_REQUIRED_FIELDS),
+                      subset_of(*PERSON_REQUIRED_FIELDS), IMMEDIATE, "compliance",
+                      "Details an individual must have before KYC can be verified.", in_use=True,
+                      wa_ref="07 Q-C1", questionnaire_ref="C8"),
+    SettingDefinition("kyc.required_fields.organisation", "list", sorted(ORGANISATION_REQUIRED_FIELDS),
+                      subset_of(*ORGANISATION_REQUIRED_FIELDS), IMMEDIATE, "compliance",
+                      "Details an organisation must have before KYC can be verified.", in_use=True,
+                      wa_ref="07 Q-C1", questionnaire_ref="C9"),
     SettingDefinition("retention.documents_years_after_end", "int", 7, int_between(1, 30), EVENT_DATE, "compliance",
                       "Years documents are kept after the relationship ends (including declined applicants).",
                       wa_ref="WA-12", questionnaire_ref="G5"),

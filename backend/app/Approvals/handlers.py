@@ -66,3 +66,4 @@ def load_handlers() -> None:
     import app.Access.handlers  # noqa: F401
     import app.Settings.handlers  # noqa: F401
     import app.Documents.service  # noqa: F401
+    import app.Parties.handlers  # noqa: F401
