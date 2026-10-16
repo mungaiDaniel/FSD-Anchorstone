@@ -26,7 +26,6 @@
     "react-hook-form": "^7.54.0",
     "react-router-dom": "^7.1.0",
     "sonner": "^1.7.0",
-    "tailwind-merge": "^2.6.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

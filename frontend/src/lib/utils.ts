@@ -1,8 +1,9 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 
+/** Join class names (Bootstrap and tw:-prefixed Tailwind). No merging: the two
+ *  frameworks' names never overlap, so there is nothing to deduplicate. */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return clsx(inputs);
 }
 
 const kes = new Intl.NumberFormat("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -28,7 +28,7 @@ export function AppShell() {
   }, [isMobile, sidebarMobileOpen]);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-bg-base)" }}>
+    <div className="tw:min-h-screen" style={{ background: "var(--color-bg-base)" }}>
       {isMobile && sidebarMobileOpen && (
         <button
           type="button"

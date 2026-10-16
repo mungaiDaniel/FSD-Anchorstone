@@ -25,9 +25,9 @@ const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-64">
+    <div className="tw:flex tw:items-center tw:justify-center tw:h-64">
       <div
-        className="w-6 h-6 border-2 rounded-full animate-spin"
+        className="tw:w-6 tw:h-6 tw:border-2 tw:rounded-full tw:animate-spin"
         style={{ borderColor: "var(--color-border-subtle)", borderTopColor: "var(--color-brand-400)" }}
       />
     </div>
@@ -93,10 +93,10 @@ const routes: RouteObject[] = [
   {
     path: "*",
     element: (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--color-bg-base)" }}>
+      <div className="tw:min-h-screen tw:flex tw:items-center tw:justify-center" style={{ background: "var(--color-bg-base)" }}>
         <div className="text-center">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: "var(--color-text-primary)" }}>404</h1>
-          <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Page not found</p>
+          <h1 className="tw:text-4xl tw:font-bold tw:mb-2" style={{ color: "var(--color-text-primary)" }}>404</h1>
+          <p className="tw:text-sm" style={{ color: "var(--color-text-secondary)" }}>Page not found</p>
         </div>
       </div>
     ),

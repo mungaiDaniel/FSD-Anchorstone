@@ -3,6 +3,9 @@ import type { ChartData, ChartOptions } from "chart.js";
 import { baseChartOptions, flowColors } from "@/lib/chartConfig";
 import { formatKES, formatKESCompact } from "@/lib/utils";
 
+// Rounded tops only, slim bars with a little air between each pair.
+const BAR = { borderRadius: 6, borderSkipped: "bottom", maxBarThickness: 28, barPercentage: 0.8, categoryPercentage: 0.6 } as const;
+
 interface Props {
   labels: string[];
   deposits: number[];
@@ -15,8 +18,8 @@ export function DepositsWithdrawalsBarChart({ labels, deposits, withdrawals, hei
   const data: ChartData<"bar"> = {
     labels,
     datasets: [
-      { label: "Deposits", data: deposits, backgroundColor: colors.deposit, borderRadius: 3, barPercentage: 0.7 },
-      { label: "Withdrawals", data: withdrawals, backgroundColor: colors.withdrawal, borderRadius: 3, barPercentage: 0.7 },
+      { label: "Deposits", data: deposits, backgroundColor: colors.deposit, ...BAR },
+      { label: "Withdrawals", data: withdrawals, backgroundColor: colors.withdrawal, ...BAR },
     ],
   };
 
@@ -32,6 +35,11 @@ export function DepositsWithdrawalsBarChart({ labels, deposits, withdrawals, hei
     },
     scales: {
       ...base.scales,
+      x: {
+        ...base.scales?.x,
+        // "May 2026" → "May" so labels stay level on phones; the tooltip keeps the full month.
+        ticks: { ...(base.scales?.x?.ticks ?? {}), maxRotation: 0, callback: (_v, i) => labels[i]?.split(" ")[0] ?? "" },
+      },
       y: {
         ...base.scales?.y,
         ticks: { ...(base.scales?.y?.ticks ?? {}), callback: (v) => formatKESCompact(Number(v)) },

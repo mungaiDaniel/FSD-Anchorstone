@@ -1,4 +1,21 @@
-@import "tailwindcss";
+/* ══ Frameworks ════════════════════════════════════════════════════════
+   Bootstrap (imported below, in its own layer) supplies the components: buttons, forms,
+   tables, the grid. Tailwind adds finishing touches (shadows, gradients,
+   transitions, fine spacing) and every Tailwind class carries the tw: prefix
+   (tw:shadow-lg, tw:md:grid-cols-4), so the two never collide on shared names
+   such as p-4 or gap-2. The design tokens below are plain CSS variables; the
+   @theme block exposes them to Tailwind, e.g. tw:bg-brand-400, tw:text-text-tertiary.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Cascade, lowest to highest: Tailwind's reset, then the "ui" layer (Bootstrap
+   followed by this file's own CSS, so between those two specificity and source
+   order decide exactly as before), then tw: utilities, which win last so they
+   can finish any component. Bootstrap's !important utilities (.shadow, .d-flex …)
+   still beat tw: classes; don't fight them on the same element. */
+@layer theme, base, ui, components, utilities;
+@import "bootstrap/dist/css/bootstrap.min.css" layer(ui);
+@import "tailwindcss" prefix(tw);
+
 
 /* ══════════════════════════════════════════════════════════════════════
    ANCHORSTONE CAPITAL LTD — DESIGN SYSTEM (light only)
@@ -14,7 +31,7 @@
    backend/app/utils/brand.py — keep them in step.
    ══════════════════════════════════════════════════════════════════════ */
 
-@theme {
+:root {
   /* Surfaces */
   --color-bg-base:        #FFFFFF;
   --color-bg-surface:     #FFFFFF;
@@ -69,6 +86,42 @@
   --topbar-height:     60px;
   --radius:            10px;
 }
+
+@theme inline {
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-surface-alt: var(--color-bg-surface-alt);
+  --color-bg-overlay: var(--color-bg-overlay);
+  --color-bg-input: var(--color-bg-input);
+  --color-bg-tint: var(--color-bg-tint);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-50: var(--color-brand-50);
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-destructive: var(--color-destructive);
+  --color-destructive-bg: var(--color-destructive-bg);
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+  --color-text-disabled: var(--color-text-disabled);
+  --color-text-on-brand: var(--color-text-on-brand);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-brand: var(--color-border-brand);
+  --font-body: var(--font-body);
+  --font-wordmark: var(--font-wordmark);
+  --radius-app: var(--radius);
+}
+
+@layer ui {
 
 /* ══ Base ══════════════════════════════════════════════════════════════ */
 
@@ -405,3 +458,4 @@ a { color: var(--color-brand-300); }
 
 @keyframes app-spin { to { transform: rotate(360deg); } }
 .app-spin { animation: app-spin 0.8s linear infinite; }
+}  /* @layer ui */

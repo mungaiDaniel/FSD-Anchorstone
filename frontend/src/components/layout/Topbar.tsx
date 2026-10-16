@@ -35,7 +35,7 @@ export function Topbar() {
         gap: "0.5rem",
       }}
     >
-      <div className="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
+      <div className="d-flex align-items-center gap-2 tw:min-w-0 flex-grow-1">
         <button
           type="button"
           className="d-lg-none btn p-2 border-0 rounded-2 flex-shrink-0"
@@ -45,7 +45,7 @@ export function Topbar() {
         >
           <Menu size={20} />
         </button>
-        <nav className="min-w-0 text-truncate" style={{ color: "var(--color-text-tertiary)", fontSize: "12px" }}>
+        <nav className="tw:min-w-0 text-truncate" style={{ color: "var(--color-text-tertiary)", fontSize: "12px" }}>
           {pathSegments.map((segment, i) => (
             <span key={i}>
               {i > 0 && <span className="mx-2" style={{ opacity: 0.4 }}>/</span>}

@@ -27,16 +27,39 @@ export function flowColors() {
 export function baseChartOptions(): ChartOptions<"bar"> {
   const grid = cssVar("--color-chart-grid", "#EEEFF7");
   const label = cssVar("--color-chart-label", "#6C7088");
+  const navy = cssVar("--color-brand-400", "#1A2060");
+  const font = cssVar("--font-body", "Inter, system-ui, sans-serif");
   return {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      tooltip: { mode: "index", intersect: false },
+      tooltip: {
+        mode: "index",
+        intersect: false,
+        backgroundColor: navy,
+        titleColor: "#FFFFFF",
+        bodyColor: "#FFFFFF",
+        titleFont: { family: font, size: 12, weight: 600 },
+        bodyFont: { family: font, size: 12 },
+        padding: 10,
+        cornerRadius: 8,
+        boxPadding: 4,
+        usePointStyle: true,
+      },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: label, font: { size: 11 } } },
-      y: { grid: { color: grid }, ticks: { color: label, font: { size: 11 } }, beginAtZero: true },
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: label, font: { family: font, size: 11 } },
+      },
+      y: {
+        grid: { color: grid },
+        border: { display: false, dash: [4, 4] },
+        ticks: { color: label, font: { family: font, size: 11 }, maxTicksLimit: 5, padding: 8 },
+        beginAtZero: true,
+      },
     },
   };
 }

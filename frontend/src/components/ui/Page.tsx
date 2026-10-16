@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="page-header-row mb-4">
-      <div className="min-w-0">
+      <div className="tw:min-w-0">
         <h1 className="app-page-title">{title}</h1>
         {subtitle && <p className="app-page-subtitle">{subtitle}</p>}
       </div>

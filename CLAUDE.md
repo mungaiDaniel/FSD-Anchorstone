@@ -132,6 +132,13 @@ Propose a recommended default.
 - **Constants:** URL paths go in `lib/constants.ts` (`ROUTES`), API paths in `API`, and response types in `lib/types.ts`.
 - **API calls:** only through `services/index.ts`, which uses the axios instance in `services/api.ts`. That instance adds the JWT and handles 401 and `PASSWORD_CHANGE_REQUIRED`.
 - **Components** go in `components/<kind>/`. Toasts use `sonner`; icons use `lucide-react`. Use the CSS variables from `globals.css`, not hard-coded colours.
+- **Styling uses both frameworks, each for its own job:**
+  - **Bootstrap** for components and layout: `btn`, `form-control`, `table`, `card`, `row`/`col-*`, `d-flex`.
+  - **Tailwind** for finishing touches: shadows, gradients, hover and transition effects, fine spacing and type sizes.
+  - **Every Tailwind class has the `tw:` prefix** (`tw:shadow-lg`, `tw:sm:text-xl`, `tw:hover:bg-bg-tint`). An unprefixed Tailwind name does nothing.
+  - **Brand tokens** work as Tailwind colours: `tw:bg-brand-400`, `tw:text-text-tertiary`, `tw:bg-warning-bg`.
+  - **Cascade:** Bootstrap and the app's own CSS share the `ui` layer, and `tw:` utilities sit above it, so a `tw:` class overrides a component style. Bootstrap's `!important` utilities (`.shadow`, `.d-flex` …) still win, so don't combine one with a `tw:` class for the same property.
+  - **`cn()`** only joins class names (`clsx`). There is no `tailwind-merge`.
 
 ## Commands
 
