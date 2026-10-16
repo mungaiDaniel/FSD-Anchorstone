@@ -44,6 +44,9 @@ from app.Parties.model import (
     PartyPerson,
     PartyRelationship,
     PartyRole,
+    PEP_RELATIONSHIPS,
+    PartyPepDetails,
+    ScreeningResult,
     party_no_seq,
 )
 from app.Parties.normalise import ID_TYPE_LABELS, ID_TYPES, normalise_email, normalise_identifier, normalise_phone
@@ -219,6 +222,44 @@ def assert_identifiers_free(identifiers: list[dict], exclude_party_id: int | Non
                            f"({party.display_name}).")
 
 
+def duplicate_warnings(contacts: list[dict], exclude_party_id: int | None = None) -> list[dict]:
+    """KYC-05: phones and emails already used by another client. A warning, never a block."""
+    out, seen = [], set()
+    for c in contacts:
+        value = c.get("value_normalised")
+        if not value:
+            continue
+        kinds = ("email",) if c["kind"] == "email" else ("mobile", "phone")
+        q = db.session.query(PartyContact, Party).join(Party, Party.id == PartyContact.party_id).filter(
+            PartyContact.kind.in_(kinds), PartyContact.value_normalised == value, Party.status != "merged")
+        if exclude_party_id is not None:
+            q = q.filter(Party.id != exclude_party_id)
+        for contact, party in q.order_by(Party.id).all():
+            key = (contact.kind, value, party.id)
+            if key in seen:
+                continue
+            seen.add(key)
+            label = "email" if c["kind"] == "email" else "phone number"
+            out.append({"kind": c["kind"], "value": c["value"], "party": party.summary(),
+                        "message": f"This {label} already belongs to {party.party_no} ({party.display_name})."})
+    return out
+
+
+def check_duplicates(data: dict, exclude_party_id: int | None = None) -> dict:
+    """What capture would refuse (identifiers) and what it only warns about (phones, emails)."""
+    party_type = data.get("party_type") if data.get("party_type") in PARTY_TYPES else "person"
+    conflicts = []
+    for ident in clean_identifiers(_list(data, "identifiers"), party_type):
+        try:
+            assert_identifiers_free([ident], exclude_party_id)
+        except Conflict as e:
+            existing = find_parties_by_identifier(ident["id_type"], ident["value_display"])
+            conflicts.append({"id_type": ident["id_type"], "value": ident["value_display"], "message": e.message,
+                              "party": existing.summary() if existing else None})
+    return {"conflicts": conflicts, "warnings": duplicate_warnings(clean_contacts(_list(data, "contacts")),
+                                                                   exclude_party_id)}
+
+
 # ── Reading ────────────────────────────────────────────────────────────────
 
 
@@ -294,8 +335,15 @@ def missing_fields(party: Party) -> list[str]:
 
 
 def party_detail(party: Party) -> dict:
+    pep = db.session.get(PartyPepDetails, party.id)
+    last = (ScreeningResult.query.filter_by(party_id=party.id)
+            .order_by(ScreeningResult.screened_at.desc(), ScreeningResult.id.desc()).first())
     return {
         **party.to_dict(),
+        "pep": pep.to_dict() if pep else None,
+        "screening": {"last": last.to_dict() if last else None,
+                      "pending": ScreeningResult.query.filter_by(party_id=party.id, review_status="pending").count()},
+        "verification_blockers": verification_blockers(party),
         "identifiers": [i.to_dict() for i in _rows(PartyIdentifier, party.id)],
         "contacts": [c.to_dict() for c in _rows(PartyContact, party.id)],
         "addresses": [a.to_dict() for a in _rows(PartyAddress, party.id)],
@@ -435,6 +483,9 @@ def create_party(data: dict, actor: str, *, commit: bool = True) -> Party:
     for role in roles:
         add_role(party, role)
     refresh_kyc_status(party)
+    party.warnings = duplicate_warnings(contacts, exclude_party_id=party.id)
+    from app.Parties.screening import screen_party
+    screen_party(party, "onboarding", actor)
     db.session.flush()
     create_audit_log("CREATE_PARTY", target_type="party", target_id=party.id, target_name=party.party_no,
                      description=f"Created {party.party_type} {party.display_name}.", new_value=party_detail(party))
@@ -542,14 +593,84 @@ def set_mandate(party_id: int, data: dict, actor: str) -> PartyMandate:
 
 
 def verification_blockers(party: Party) -> list[str]:
-    """Why KYC can't be verified yet (empty = it can). Screening and PEP checks join in later."""
+    """Why KYC can't be verified yet (empty = it can)."""
     reasons = []
     if party.status != "active":
         reasons.append(f"The client is {party.status}.")
     missing = missing_fields(party)
     if missing:
         reasons.append("Missing compulsory details: " + ", ".join(m.replace("_", " ") for m in missing) + ".")
+    if ScreeningResult.query.filter_by(party_id=party.id, review_status="pending").first():
+        reasons.append("A possible watchlist match must be reviewed first.")
+    if party.is_pep:
+        pep = db.session.get(PartyPepDetails, party.id)
+        if pep is None:
+            reasons.append("The client is a PEP: record the PEP details.")
+        elif pep.status != "approved":
+            reasons.append("The client is a PEP: senior approval of the PEP details is still pending.")
     return reasons
+
+
+# ── PEP (KYC-07) ───────────────────────────────────────────────────────────
+
+
+def clean_pep(data: dict) -> dict:
+    values = {
+        "position_held": _text(data, "position_held", 200, required=True, label="Position held"),
+        "country": _country(data, "country"),
+        "since": parse_date(data.get("since"), "since", required=False),
+        "until": parse_date(data.get("until"), "until", required=False),
+        "pep_relationship": _choice(data, "pep_relationship", PEP_RELATIONSHIPS, required=True),
+        "related_pep_name": _text(data, "related_pep_name", 200),
+        "source_of_funds": _text(data, "source_of_funds", 2000, required=True, label="Source of funds"),
+        "source_of_wealth": _text(data, "source_of_wealth", 2000, required=True, label="Source of wealth"),
+    }
+    if values["pep_relationship"] != "self" and not values["related_pep_name"]:
+        raise ValidationError("Name the politically exposed person this client is related to.")
+    if values["since"] and values["until"] and values["until"] < values["since"]:
+        raise ValidationError("until can't be before since.")
+    return values
+
+
+def set_pep(party_id: int, data: dict, actor_user):
+    """Flag a client as a PEP with the extra details (needs senior approval), or ask to clear the flag."""
+    party = lock_party(party_id)
+    if party.status == "merged":
+        raise Conflict("This client was merged into another record.")
+    if approvals_open_for(party.id, "party.pep_approve"):
+        raise Conflict("A PEP change for this client is already waiting for approval.")
+    if data.get("is_pep") is True:
+        values = clean_pep(data)
+        row = db.session.get(PartyPepDetails, party.id)
+        old = row.to_dict() if row else None
+        if row is None:
+            row = PartyPepDetails(party_id=party.id, recorded_by=actor_user.email, status="pending", **values)
+            db.session.add(row)
+        else:
+            for k, v in values.items():
+                setattr(row, k, v)
+            row.status, row.recorded_by, row.approved_at, row.approved_by = "pending", actor_user.email, None, None
+        party.is_pep = True
+        db.session.flush()
+        create_audit_log("FLAG_PARTY_PEP", target_type="party", target_id=party.id, target_name=party.party_no,
+                         old_value=old, new_value=row.to_dict())
+        payload = {"party_id": party.id, "action": "approve"}
+    elif data.get("is_pep") is False:
+        if not party.is_pep:
+            raise Conflict(f"{party.party_no} isn't flagged as a PEP.")
+        payload = {"party_id": party.id, "action": "clear"}
+    else:
+        raise ValidationError("is_pep must be true or false.")
+    cr = approvals.submit("party.pep_approve", payload, actor_user, data.get("reason"), commit=False)
+    db.session.commit()
+    return cr
+
+
+def approvals_open_for(party_id: int, request_type: str):
+    from app.Approvals.model import CR_OPEN, ChangeRequest
+    return ChangeRequest.query.filter(ChangeRequest.request_type == request_type,
+                                      ChangeRequest.entity_id == str(party_id),
+                                      ChangeRequest.status.in_(CR_OPEN)).first()
 
 
 def request_verification(party_id: int, actor_user, reason: str | None = None):

@@ -63,6 +63,8 @@ PERIODIC = [
              enabled=lambda app: bool(app.config.get("DB_BACKUP_ENABLED")),
              args=lambda slot: {"triggered_by": "scheduled"}),
     Periodic("change_requests.expire", "change_requests.expire", "interval", lambda app: {"minutes": 60}),
+    # Daily at 02:00 Nairobi (23:00 UTC): existing clients against the watchlists.
+    Periodic("screening.rescreen", "screening.rescreen", "daily", lambda app: {"hour": 23, "minute": 0}),
 ]
 PERIODIC_BY_NAME = {p.name: p for p in PERIODIC}
 

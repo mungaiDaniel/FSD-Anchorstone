@@ -145,7 +145,7 @@ def _set_payout(party: Party, values: dict) -> None:
         db.session.add(PartyBankAccount(party_id=party.id, status="active", **wanted[0]))
 
 
-def apply_investor_fields(party: Party, values: dict) -> None:
+def apply_investor_fields(party: Party, values: dict, actor: str) -> None:
     """Write investor-form fields (any subset) onto the party."""
     if "full_name" in values:
         party.display_name = values["full_name"]
@@ -174,6 +174,9 @@ def apply_investor_fields(party: Party, values: dict) -> None:
         _set_payout(party, merged)
     db.session.flush()
     parties.refresh_kyc_status(party)
+    if {"full_name", "id_number", "kra_pin"} & set(values):
+        from app.Parties.screening import screen_party
+        screen_party(party, "identity_change", actor)
 
 
 def statement_email_for(party: Party, requested: str | None) -> str:

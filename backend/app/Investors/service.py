@@ -15,6 +15,7 @@ from app.Investors.model import INVESTOR_STATUSES, PAYOUT_METHODS, Investor, cli
 from app.Parties import investors as party_link
 from app.Parties import service as parties
 from app.Parties.model import Account
+from app.Parties.screening import screen_party
 from app.Transactions.ledger import balances_subquery, investor_totals, lock_investor
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import EAT, utcnow
@@ -99,6 +100,7 @@ def create_investor(data: dict, actor: str) -> Investor:
     _assert_email_free(values["email"])
     party = party_link.new_party_for_investor(values, actor)
     parties.refresh_kyc_status(party)
+    screen_party(party, "onboarding", actor)
     create_audit_log("CREATE_PARTY", target_type="party", target_id=party.id, target_name=party.party_no,
                      description=f"Created with investor account for {party.display_name}.",
                      new_value=parties.party_detail(party))
@@ -133,7 +135,7 @@ def update_investor(investor_id: int, data: dict, actor: str) -> Investor:
     old = {k: getattr(investor, k) for k in values}
     for key, value in values.items():
         setattr(investor, key, value)
-    party_link.apply_investor_fields(db.session.get(parties.Party, investor.party_id), values)
+    party_link.apply_investor_fields(db.session.get(parties.Party, investor.party_id), values, actor)
     create_audit_log("UPDATE_INVESTOR", target_type="investor", target_id=investor.id,
                      target_name=investor.client_code, old_value=old, new_value=values)
     db.session.commit()

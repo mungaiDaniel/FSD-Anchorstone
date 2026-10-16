@@ -23,6 +23,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.Branches.model import HEAD_OFFICE_ID
 from app.database.database import db
@@ -365,3 +366,110 @@ class Account(Base, db.Model):
         return {"id": self.id, "account_no": self.account_no, "account_type": self.account_type,
                 "party_id": self.party_id, "branch_id": self.branch_id, "currency": self.currency,
                 "status": self.status, "opened_on": iso(self.opened_on), "closed_on": iso(self.closed_on)}
+
+
+# ── Screening (KYC-06) and PEP (KYC-07) ────────────────────────────────────
+
+WATCHLISTS = ("internal_blacklist", "pep", "sanctions_un")
+SCREENING_TRIGGERS = ("onboarding", "identity_change", "watchlist_change", "rescreen")
+REVIEW_STATUSES = ("not_required", "pending", "cleared", "confirmed")
+PEP_RELATIONSHIPS = ("self", "family_member", "close_associate")
+PEP_STATUSES = ("pending", "approved", "cleared")
+
+
+class WatchlistEntry(Base, db.Model):
+    """A name (and optional identifiers) on Anchorstone's internal blacklist or PEP list."""
+    __tablename__ = "watchlist_entries"
+    __table_args__ = (
+        CheckConstraint(_in("list", WATCHLISTS), name="ck_watchlist_entries_list"),
+        CheckConstraint("status IN ('active', 'removed')", name="ck_watchlist_entries_status"),
+        Index("ix_watchlist_entries_name", "name_normalised"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    list = Column(String(20), nullable=False)
+    full_name = Column(String(200), nullable=False)
+    name_normalised = Column(String(200), nullable=False)
+    identifiers = Column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
+    reason = Column(Text, nullable=False)
+    source = Column(String(200), nullable=True)
+    status = Column(String(10), nullable=False, default="active", server_default="active")
+    added_by = Column(String(120), nullable=False)
+    added_at = Column(DateTime(timezone=True), nullable=False)
+    removed_by = Column(String(120), nullable=True)
+    removed_at = Column(DateTime(timezone=True), nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "list": self.list, "full_name": self.full_name, "identifiers": self.identifiers,
+                "reason": self.reason, "source": self.source, "status": self.status, "added_by": self.added_by,
+                "added_at": iso(self.added_at), "removed_by": self.removed_by, "removed_at": iso(self.removed_at)}
+
+
+class ScreeningResult(Base, db.Model):
+    """One screening of a party. A potential match blocks KYC verification until a reviewer
+    (never the person who onboarded the party) clears or confirms it."""
+    __tablename__ = "screening_results"
+    __table_args__ = (
+        CheckConstraint(_in("trigger", SCREENING_TRIGGERS), name="ck_screening_results_trigger"),
+        CheckConstraint("outcome IN ('clear', 'potential_match')", name="ck_screening_results_outcome"),
+        CheckConstraint(_in("review_status", REVIEW_STATUSES), name="ck_screening_results_review"),
+        CheckConstraint("(outcome = 'clear') = (review_status = 'not_required')", name="ck_screening_results_review_needed"),
+        CheckConstraint("(review_status IN ('cleared', 'confirmed')) = (reviewed_by IS NOT NULL)",
+                        name="ck_screening_results_reviewed"),
+        # Maker-checker, backed by the database: the person who onboarded the party can't review it.
+        CheckConstraint("reviewed_by IS NULL OR lower(reviewed_by) <> lower(maker_email)",
+                        name="ck_screening_results_maker_not_checker"),
+        Index("ix_screening_results_pending", "review_status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    party_id = Column(Integer, ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False, index=True)
+    trigger = Column(String(20), nullable=False)
+    lists = Column(JSONB, nullable=False)
+    matches = Column(JSONB, nullable=False)
+    outcome = Column(String(16), nullable=False)
+    review_status = Column(String(12), nullable=False)
+    maker_email = Column(String(120), nullable=False)
+    screened_by = Column(String(120), nullable=False)
+    screened_at = Column(DateTime(timezone=True), nullable=False)
+    reviewed_by = Column(String(120), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    review_note = Column(Text, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "party_id": self.party_id, "trigger": self.trigger, "lists": self.lists,
+                "matches": self.matches, "outcome": self.outcome, "review_status": self.review_status,
+                "maker_email": self.maker_email, "screened_by": self.screened_by, "screened_at": iso(self.screened_at),
+                "reviewed_by": self.reviewed_by, "reviewed_at": iso(self.reviewed_at), "review_note": self.review_note}
+
+
+class PartyPepDetails(Base, db.Model):
+    """The extra information asked for when a party is a politically exposed person (KYC-07)."""
+    __tablename__ = "party_pep_details"
+    __table_args__ = (
+        CheckConstraint(_in("pep_relationship", PEP_RELATIONSHIPS), name="ck_party_pep_details_relationship"),
+        CheckConstraint(_in("status", PEP_STATUSES), name="ck_party_pep_details_status"),
+        CheckConstraint("pep_relationship = 'self' OR related_pep_name IS NOT NULL", name="ck_party_pep_details_related"),
+        CheckConstraint("(status = 'approved') = (approved_at IS NOT NULL)", name="ck_party_pep_details_approved"),
+    )
+
+    party_id = Column(Integer, ForeignKey("parties.id", ondelete="RESTRICT"), primary_key=True)
+    position_held = Column(String(200), nullable=False)
+    country = Column(String(2), nullable=False, default="KE", server_default="KE")
+    since = Column(Date, nullable=True)
+    until = Column(Date, nullable=True)
+    pep_relationship = Column(String(16), nullable=False)
+    related_pep_name = Column(String(200), nullable=True)
+    source_of_funds = Column(Text, nullable=False)
+    source_of_wealth = Column(Text, nullable=False)
+    status = Column(String(10), nullable=False, default="pending", server_default="pending")
+    recorded_by = Column(String(120), nullable=False)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    approved_by = Column(String(250), nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"position_held": self.position_held, "country": self.country, "since": iso(self.since),
+                "until": iso(self.until), "pep_relationship": self.pep_relationship,
+                "related_pep_name": self.related_pep_name, "source_of_funds": self.source_of_funds,
+                "source_of_wealth": self.source_of_wealth, "status": self.status, "recorded_by": self.recorded_by,
+                "approved_at": iso(self.approved_at), "approved_by": self.approved_by}
