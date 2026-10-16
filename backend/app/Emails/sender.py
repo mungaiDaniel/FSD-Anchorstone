@@ -1,6 +1,8 @@
 """
 Sends queued outbox emails over SMTP (Flask-Mail).
 
+Attachments are sent exactly as stored with the email when it was created.
+
 drain_queue() is called by the background scheduler every
 EMAIL_QUEUE_INTERVAL_MINUTES (and by the "Send now" button). It claims rows
 with a single UPDATE ... WHERE status='queued' ... RETURNING, so a second
@@ -22,6 +24,7 @@ from app.Emails.model import (
     STATUS_SENT,
     OutboxEmail,
 )
+from app.Interest.model import InterestPayout
 from app.utils import brand
 from app.utils.dates import utcnow
 from app.utils.email_template import attach_brand_logo, get_email_title, render_branded_email_html
@@ -64,14 +67,16 @@ def build_message(subject: str, body: str, recipient: str, email_type: str | Non
 
 def _send_one(email: OutboxEmail) -> None:
     msg = build_message(email.subject, email.body, email.recipient_email, email.email_type)
-    if email.email_type == EMAIL_INTEREST_STATEMENT and email.payout_id:
-        from app.utils.pdf_generator import generate_interest_statement_pdf
-
-        pdf = generate_interest_statement_pdf(email.payout_id)
-        period_label = email.subject.split("—")[-1].strip().replace(" ", "-")
-        msg.attach(f"Anchorstone-statement-{email.investor.client_code}-{period_label}.pdf", "application/pdf", pdf)
-    elif email.attachment is not None:
+    if email.attachment is not None:
+        # Generated and stored when the email was created; never rebuilt here.
         msg.attach(email.attachment.filename, email.attachment.content_type, email.attachment.data)
+    elif email.email_type == EMAIL_INTEREST_STATEMENT and email.payout_id:
+        # Only interest statements approved before PDFs were stored at approval.
+        from app.utils.pdf_generator import generate_interest_statement_pdf, interest_statement_filename
+
+        payout = db.session.get(InterestPayout, email.payout_id)
+        msg.attach(interest_statement_filename(payout), "application/pdf",
+                   generate_interest_statement_pdf(email.payout_id))
     mail.send(msg)
 
 

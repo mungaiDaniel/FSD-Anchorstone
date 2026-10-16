@@ -317,6 +317,7 @@ def approve_period(period_id: int, actor: str) -> InterestPeriod:
     period.approved_by = actor
     period.approved_at = utcnow()
     payouts = period.payouts.all()
+    db.session.flush()  # each statement PDF must see the month as approved
     for payout in payouts:
         queue_interest_statement(payout, actor)
     if not payouts:

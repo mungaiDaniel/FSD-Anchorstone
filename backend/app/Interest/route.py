@@ -7,7 +7,8 @@ from app.Interest.model import InterestPayout, InterestPeriod
 from app.Transactions.ledger import locked_through
 from app.utils.dates import iso
 from app.utils.http import NotFound, ok
-from app.utils.pdf_generator import generate_interest_statement_pdf
+from app.Emails.model import EMAIL_INTEREST_STATEMENT, EmailAttachment, OutboxEmail
+from app.utils.pdf_generator import generate_interest_statement_pdf, interest_statement_filename
 
 interest_v1 = Blueprint("interest_v1", __name__)
 
@@ -78,8 +79,14 @@ def payout_statement_pdf(payout_id):
     payout = db.session.get(InterestPayout, payout_id)
     if payout is None:
         raise NotFound("Payout not found.")
-    pdf = generate_interest_statement_pdf(payout_id)
-    filename = f"Anchorstone-statement-{payout.investor.client_code}-{payout.period.period_start:%Y-%m}.pdf"
+    # The statement as issued to the investor, if it has been; otherwise the current figures.
+    issued = (
+        EmailAttachment.query.join(OutboxEmail, OutboxEmail.id == EmailAttachment.email_id)
+        .filter(OutboxEmail.payout_id == payout.id, OutboxEmail.email_type == EMAIL_INTEREST_STATEMENT)
+        .first()
+    )
+    pdf = issued.data if issued is not None else generate_interest_statement_pdf(payout_id)
+    filename = interest_statement_filename(payout)
     response = make_response(pdf)
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = f'inline; filename="{filename}"'

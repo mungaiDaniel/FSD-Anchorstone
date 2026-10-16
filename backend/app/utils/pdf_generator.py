@@ -298,6 +298,10 @@ class PDFStatementGenerator:
         return story
 
 
+def interest_statement_filename(payout) -> str:
+    return f"Anchorstone-statement-{payout.investor.client_code}-{payout.period.period_start:%Y-%m}.pdf"
+
+
 def generate_interest_statement_pdf(payout_id: int) -> bytes:
     from app.Interest.statement import build_interest_statement_data
     return PDFStatementGenerator(build_interest_statement_data(payout_id)).generate()

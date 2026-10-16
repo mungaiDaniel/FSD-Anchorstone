@@ -18,6 +18,7 @@ from app.Emails.model import (
     EMAIL_DEPOSIT_REVERSAL,
     EMAIL_INTEREST_STATEMENT,
     EMAIL_WITHDRAWAL_CONFIRMATION,
+    EmailAttachment,
     OutboxEmail,
 )
 from app.Transactions.ledger import balance_as_of
@@ -143,6 +144,12 @@ def queue_withdrawal_confirmation(withdrawal, actor: str | None) -> OutboxEmail:
 
 
 def queue_interest_statement(payout, actor: str | None) -> OutboxEmail:
+    """The statement PDF is generated now, when the month is approved, and
+    stored with the email: later edits (an investor's name or payout account,
+    say) can't change a statement that has already been issued. The caller
+    must have flushed the period's approval first."""
+    from app.utils.pdf_generator import generate_interest_statement_pdf, interest_statement_filename
+
     investor = payout.investor
     period = payout.period
     body = (
@@ -167,6 +174,11 @@ def queue_interest_statement(payout, actor: str | None) -> OutboxEmail:
         subject=f"Your interest statement — {period.label}",
         body=body,
         created_by=actor,
+    )
+    email.attachment = EmailAttachment(
+        filename=interest_statement_filename(payout),
+        content_type="application/pdf",
+        data=generate_interest_statement_pdf(payout.id),
     )
     db.session.add(email)
     return email
