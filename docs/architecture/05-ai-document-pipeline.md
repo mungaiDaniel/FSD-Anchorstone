@@ -18,6 +18,38 @@ This is new; it isn't in the FSD.
 >   HEIC / locked / damaged files, the review screen and maker-checker confirmation (§8), cross-document checks,
 >   rules and screening (§7), budgets and the circuit breaker (§11), and the evaluation harness (§12).
 >
+> **Phase 3b, review and pre-selection** (`backend/app/Applications/`, `frontend/src/pages/applications/`):
+> - A **temporary pre-screen application** (WA-04 products, an instalment *estimate*) that phase 5 replaces.
+> - The **review screen** with maker-checker (`ai.review`): corrections sit beside AI values, and approval fills only
+>   empty client values.
+> - **Cross-document checks** (§7.0, the four used by the brief).
+> - The **rule set as a setting** (`screening.rule_set`, the WA-10 rules), changed through `settings.change`, rather
+>   than the separate rule-set tables of §7.2.
+> - **Deterministic screening runs.**
+> - **Human decisions**, with a second approver for proceeding against "Not qualified".
+> - The **decision log** and the **usage and accuracy views**.
+>
+> Not built yet: backtesting a rule-set draft (§7.2), `screening replay` as a CLI (the tests re-evaluate stored runs
+> instead), budgets, and the "confirm all" bulk action (Q-C8).
+>
+> **Requirement IDs**, as used by the phase briefs. The FSD's §15 rows have no numbers.
+>
+> | ID | Requirement | Code | Tests |
+> |---|---|---|---|
+> | AI-01 | Consent first | `Jobs/queue.py` `assert_consent`, `DocAI/service.py` | `test_docai.py`: no consent, withdrawn consent |
+> | AI-02 | Secure processing (server only, key in config) | `DocAI/client.py` | `test_docai.py`: SDK imports, key never leaks |
+> | AI-03 | Page reference and confidence; unreadable → rescan | `DocAI/schemas/`, `extractor.py`, `validators.py` | `test_docai.py` |
+> | AI-04 | Long statements page by page, balances checked | `DocAI/statements.py` | `test_docai_statements.py` |
+> | AI-05 | Calculations by the system | `DocAI/metrics.py`, `Applications/screening.py` | `test_docai_statements.py`, `test_ai_rules.py` |
+> | AI-06 | Cross-checks | `Applications/checks.py` | `test_ai_checks.py` (`test_ai_06_*`) |
+> | AI-07 | Staff confirmation with maker-checker | `Applications/review.py`, CRB in `service.py` / `handlers.py` | `test_ai_review.py`, `test_applications.py` (`test_ai_07_*`) |
+> | AI-08 | Pre-screening rules as versioned data | `Applications/ruleset.py`, `screening.py` | `test_ai_rules.py` (`test_ai_08_*`) |
+> | AI-09 | People decide | `screening.py` `decide`, `CreditOverride` | `test_ai_rules.py` (`test_ai_09_*`), end-to-end test |
+> | AI-10 | Traceability | `DocAI/model.py`, `Applications/reports.py` decision log | `test_docai.py`, `test_ai_end_to_end.py` |
+> | AI-11 | Fairness (protected attributes refused) | `Applications/ruleset.py` | `test_ai_rules.py` (`test_ai_11_*`) |
+> | AI-12 | Failures and cost | `extractor.py` retries, `reports.py` `usage` | `test_docai.py`, `test_ai_12_*` |
+> | AI-13 | Accuracy sign-off evidence | `reports.py` `accuracy` | `test_ai_13_*` |
+>
 > Schemas are built once from `types.py` by `scripts/build_docai_schemas.py` and never edited. Prompts are
 > hand-written files. Both are hashed onto every extraction.
 

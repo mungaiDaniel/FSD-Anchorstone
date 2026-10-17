@@ -68,6 +68,12 @@ The acceptance criteria below are *in addition* to that.
 
 ## Phase 3 — AI document pipeline and pre-selection
 
+> **Temporary in phase 3b.** The pre-screen application (`loan_applications`: three WA-04 products, term limits,
+> indicative rate) and its **estimated** instalment (`app/Applications/estimate.py`: reducing balance, interest-only
+> for the bridge loan) exist only so pre-selection has something to attach to. Phase 5's product engine replaces the
+> product list, the term limits and the estimate with versioned products and real schedules. The application table
+> and its links stay and are extended. Screens and API responses label the instalment "estimate" until then.
+
 | | |
 |---|---|
 | **Goal** | Extract data from scanned client documents, have staff confirm it, compute metrics in code and run versioned rules → Shortlisted / Needs review / Not qualified. |
