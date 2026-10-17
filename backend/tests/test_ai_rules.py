@@ -165,7 +165,8 @@ def test_ai_08_changing_the_rules_is_a_new_version_under_maker_checker(staff, ad
     assert admin2.post(f"/api/v1/change-requests/{cr_id}/approve").status_code == 200
     business.clear_cache()
     second = staff.post(f"/api/v1/applications/{app['id']}/screen").get_json()["data"]
-    assert (first["rule_set_version_no"], second["rule_set_version_no"]) == (1, 2)
+    # Version 2 (rule 10) is seeded from the deployment date, after the pinned test date; this change is version 3.
+    assert (first["rule_set_version_no"], second["rule_set_version_no"]) == (1, 3)
     assert by_rule(second["rules"])["R8"]["threshold"] == 1
     assert db.session.get(ScreeningRun, first["id"]).rule_set["rules"][7]["threshold"] == 2  # old run kept
 
@@ -269,3 +270,53 @@ def test_ai_09_shortlisted_applications_queue_for_credit_analysis(staff, admin1)
     queue = staff.get("/api/v1/applications?queue=ready_for_credit").get_json()["data"]["items"]
     assert [a["application_no"] for a in queue] == [shortlisted["application_no"]]
     assert queue[0]["recommendation"] == "shortlisted"
+
+
+# ── Rule set version 2: rule 10, collateral owner ──
+
+
+def test_ai_08_rule_set_v2_adds_rule_10_as_a_new_version():
+    from app.Applications.ruleset import RULE_SET_V2
+    from app.Settings.model import SettingVersion
+
+    v1, v2 = (SettingVersion.query.filter_by(key="screening.rule_set", version_no=n).one() for n in (1, 2))
+    assert v1.value == DEFAULT_RULE_SET and len(v1.value["rules"]) == 9  # kept as it was
+    assert v2.value == RULE_SET_V2 and len(v2.value["rules"]) == 10
+    r10 = v2.value["rules"][9]
+    assert (r10["id"], r10["description"], r10["metric"], r10["outcome_if_failed"]) == \
+        ("R10", "Collateral owner is the applicant or a guarantor", "collateral_owner_match", "needs_review")
+    assert v2.effective_from >= v1.effective_from and v2.created_by != v2.approved_by and "WA-10" in v2.evidence
+
+
+def test_ai_08_rule_10_outcomes():
+    from app.Applications.ruleset import RULE_SET_V2
+    got, results = screening.evaluate(RULE_SET_V2, inputs(collateral_owner_match="pass"))
+    assert got == "shortlisted" and by_rule(results)["R10"]["result"] == "pass"
+    got, results = screening.evaluate(RULE_SET_V2, inputs(collateral_owner_match="fail"))
+    assert got == "needs_review" and by_rule(results)["R10"]["outcome_if_failed"] == "needs_review"
+    got, results = screening.evaluate(RULE_SET_V2, inputs(collateral_owner_match=None))
+    assert got == "needs_review" and by_rule(results)["R10"]["result"] == "missing"
+    got, results = screening.evaluate(RULE_SET_V2, inputs(product="bridge_loan", collateral_owner_match=None,
+                                                          forced_sale_cover_percent=None))
+    assert got == "shortlisted" and by_rule(results)["R10"]["result"] == "not_applicable"
+    data = inputs()  # a check that doesn't apply makes the rule not applicable, never failed
+    data["metrics"]["collateral_owner_match"] = {"value": None, "missing": None,
+                                                 "not_applicable": "This product has no collateral (WA-04).",
+                                                 "sources": []}
+    got, results = screening.evaluate(RULE_SET_V2, data)
+    assert by_rule(results)["R10"]["result"] == "not_applicable" and got == "shortlisted"
+
+
+def test_ai_08_screening_after_v2_takes_effect_uses_ten_rules(staff, monkeypatch):
+    import app.Settings.business as business_module
+    from app.Settings.model import SettingVersion
+
+    v2 = SettingVersion.query.filter_by(key="screening.rule_set", version_no=2).one()
+    monkeypatch.setattr(business_module, "today_eat", lambda: v2.effective_from)
+    monkeypatch.setattr(screening, "today_eat", lambda: v2.effective_from)
+    business.clear_cache()
+    p = person(staff, consented=False)
+    app = new_application(staff, p["id"])
+    run = staff.post(f"/api/v1/applications/{app['id']}/screen").get_json()["data"]
+    assert run["rule_set_version_no"] == 2 and len(run["rules"]) == 10
+    assert by_rule(run["rules"])["R10"]["result"] == "missing"  # no approved logbook or title deed yet

@@ -77,6 +77,13 @@ DEFAULT_RULE_SET = {"rules": [
 ]}
 
 
+# Version 2 (migration d4e5f6a7b8ca): version 1 plus rule 10. DEFAULT_RULE_SET stays version 1, the seeded default.
+RULE_10 = {"id": "R10", "description": "Collateral owner is the applicant or a guarantor",
+           "metric": "collateral_owner_match", "comparison": "==", "threshold": "pass",
+           "outcome_if_failed": "needs_review", "applies_to": {"products": ["asset_finance", "business_loan"]}}
+RULE_SET_V2 = {"rules": DEFAULT_RULE_SET["rules"] + [RULE_10]}
+
+
 def _number(value, where: str) -> str:
     if isinstance(value, bool):
         raise ValidationError(f"{where} must be a number.")

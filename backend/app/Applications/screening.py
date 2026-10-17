@@ -183,8 +183,12 @@ def gather(app: LoanApplication) -> dict:
         if worst == "missing" else _have(worst, [{"type": "check", "check": c["check"]} for c in identity])
     for name in ("cr12_directors_match", "collateral_owner_match"):
         c = by_check[name]
-        m[name] = _missing(c["reason"]) if c["status"] == "missing" else \
-            _have(c["status"], [{"type": "check", "check": name}])
+        if c["status"] == "missing":
+            m[name] = _missing(c["reason"])
+        elif c["status"] == "not_applicable":
+            m[name] = {"value": None, "missing": None, "not_applicable": c["reason"], "sources": []}
+        else:
+            m[name] = _have(c["status"], [{"type": "check", "check": name}])
 
     m["amount_requested"] = _have(str(app.amount_requested))
     m["estimated_instalment"] = _have(str(app.estimated_instalment), note="ESTIMATE (phase 5 replaces it)")
@@ -246,6 +250,9 @@ def evaluate(rule_set: dict, inputs: dict) -> tuple[str, list[dict]]:
             results.append({**base, "result": "not_applicable", "reason": na})
             continue
         metric = inputs["metrics"].get(rule["metric"]) or {"value": None, "missing": "not computed"}
+        if metric.get("not_applicable"):
+            results.append({**base, "result": "not_applicable", "reason": metric["not_applicable"]})
+            continue
         threshold = rule["threshold"]
         if isinstance(threshold, dict):
             other = inputs["metrics"].get(threshold["of"]) or {"value": None, "missing": "not computed"}
