@@ -1,0 +1,88 @@
+{
+  "_comment": "SYNTHETIC recorded response for tests: written by hand for the matching file in tests/fixtures/documents (not a real client, not from a real API call). Token counts are realistic estimates for claude-opus-5-5.",
+  "id": "msg_sample_national_id_wrong_type_kra_pin",
+  "request_id": "req_sample_national_id_wrong_type_kra_pin",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 3400,
+    "output_tokens": 420,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "answer": {
+    "detected_document_type": "kra_pin",
+    "readable": true,
+    "unreadable_reason": null,
+    "page_count_seen": 1,
+    "fields": {
+      "id_number": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "full_name": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "date_of_birth": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "sex": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "place_of_birth": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "date_of_issue": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "serial_number": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "district": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      }
+    },
+    "warnings": [
+      "This is a KRA PIN certificate, not a national ID card."
+    ]
+  }
+}

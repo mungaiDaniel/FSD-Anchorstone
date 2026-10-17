@@ -1,0 +1,157 @@
+{
+  "_comment": "SYNTHETIC recorded response for tests: written by hand for the matching file in tests/fixtures/documents (not a real client, not from a real API call). Token counts are realistic estimates for claude-opus-5-5.",
+  "id": "msg_sample_bank_statement_page1",
+  "request_id": "req_sample_bank_statement_page1",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 4700,
+    "output_tokens": 2100,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "answer": {
+    "detected_document_type": "bank_statement",
+    "readable": true,
+    "unreadable_reason": null,
+    "page_number": 1,
+    "rows_order": "oldest_first",
+    "header": {
+      "bank_name": {
+        "value": "SAMPLE BANK (NOT A REAL BANK)",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "SAMPLE BANK (NOT A REAL BANK)",
+        "legibility": "good",
+        "notes": null
+      },
+      "branch": {
+        "value": "SAMPLE BRANCH",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "SAMPLE BRANCH",
+        "legibility": "good",
+        "notes": null
+      },
+      "account_name": {
+        "value": "TESTA SAMPLE MOCKERSON",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "TESTA SAMPLE MOCKERSON",
+        "legibility": "good",
+        "notes": null
+      },
+      "account_number_last4": {
+        "value": "0000",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "0000",
+        "legibility": "good",
+        "notes": null
+      },
+      "currency": {
+        "value": "KES",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "KES",
+        "legibility": "good",
+        "notes": null
+      },
+      "period_from": {
+        "value": "2026-07-01",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "2026-07-01",
+        "legibility": "good",
+        "notes": null
+      },
+      "period_to": {
+        "value": "2026-09-30",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "2026-09-30",
+        "legibility": "good",
+        "notes": null
+      }
+    },
+    "page_opening_balance": {
+      "value": "50000.00",
+      "confidence": 0.95,
+      "source_page": 1,
+      "source_text": "50000.00",
+      "legibility": "good",
+      "notes": null
+    },
+    "page_closing_balance": {
+      "value": "116000.00",
+      "confidence": 0.95,
+      "source_page": 1,
+      "source_text": "116000.00",
+      "legibility": "good",
+      "notes": null
+    },
+    "transactions": [
+      {
+        "row": 1,
+        "date": "2026-07-01",
+        "description": "SALARY SAMPLE EMPLOYER LTD",
+        "reference": null,
+        "debit": null,
+        "credit": "80000.00",
+        "balance": "130000.00",
+        "confidence": 0.95
+      },
+      {
+        "row": 2,
+        "date": "2026-07-05",
+        "description": "ATM WITHDRAWAL SAMPLE ATM",
+        "reference": null,
+        "debit": "10000.00",
+        "credit": null,
+        "balance": "120000.00",
+        "confidence": 0.95
+      },
+      {
+        "row": 3,
+        "date": "2026-07-10",
+        "description": "FULIZA REPAYMENT",
+        "reference": null,
+        "debit": "2500.00",
+        "credit": null,
+        "balance": "117500.00",
+        "confidence": 0.95
+      },
+      {
+        "row": 4,
+        "date": "2026-07-14",
+        "description": "CHEQUE DEPOSIT 000123",
+        "reference": null,
+        "debit": null,
+        "credit": "5000.00",
+        "balance": "122500.00",
+        "confidence": 0.95
+      },
+      {
+        "row": 5,
+        "date": "2026-07-16",
+        "description": "CHQ 000123 RTD INSUFF FUNDS",
+        "reference": null,
+        "debit": "5000.00",
+        "credit": null,
+        "balance": "117500.00",
+        "confidence": 0.95
+      },
+      {
+        "row": 6,
+        "date": "2026-07-25",
+        "description": "SAMPLE POWER PREPAID",
+        "reference": null,
+        "debit": "1500.00",
+        "credit": null,
+        "balance": "116000.00",
+        "confidence": 0.95
+      }
+    ],
+    "warnings": []
+  }
+}

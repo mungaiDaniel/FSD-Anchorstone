@@ -1,0 +1,94 @@
+{
+  "_comment": "SYNTHETIC recorded response for tests: written by hand for the matching file in tests/fixtures/documents (not a real client, not from a real API call). Token counts are realistic estimates for claude-opus-5-5.",
+  "id": "msg_sample_title_deed",
+  "request_id": "req_sample_title_deed",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 3800,
+    "output_tokens": 1000,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "answer": {
+    "detected_document_type": "title_deed",
+    "readable": true,
+    "unreadable_reason": null,
+    "page_count_seen": 1,
+    "fields": {
+      "title_number": {
+        "value": "SAMPLE/BLOCK1/000",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "SAMPLE/BLOCK1/000",
+        "legibility": "good",
+        "notes": null
+      },
+      "registration_section": {
+        "value": "SAMPLE SECTION",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "SAMPLE SECTION",
+        "legibility": "good",
+        "notes": null
+      },
+      "parcel_number": {
+        "value": "000",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "000",
+        "legibility": "good",
+        "notes": null
+      },
+      "area": {
+        "value": "0.050 Ha",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "0.050 Ha",
+        "legibility": "good",
+        "notes": null
+      },
+      "registered_proprietors": {
+        "value": "TESTA SAMPLE MOCKERSON",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "TESTA SAMPLE MOCKERSON",
+        "legibility": "good",
+        "notes": null
+      },
+      "tenure": {
+        "value": "freehold",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "freehold",
+        "legibility": "good",
+        "notes": null
+      },
+      "lease_term": {
+        "value": null,
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "encumbrances": {
+        "value": null,
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "registration_date": {
+        "value": "2018-05-05",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "2018-05-05",
+        "legibility": "good",
+        "notes": null
+      }
+    },
+    "warnings": []
+  }
+}

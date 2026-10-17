@@ -1,3 +1,10 @@
 # Shell scripts run inside Linux containers: always LF, whatever the checkout platform.
 *.sh text eol=lf
 Procfile text eol=lf
+
+# Sample documents are binary: never convert line endings.
+*.pdf binary
+*.png binary
+# AI schemas and prompts are hashed (SHA-256) into every extraction: same bytes on every platform.
+backend/app/DocAI/schemas/*.json text eol=lf
+backend/app/DocAI/prompts/*.md text eol=lf

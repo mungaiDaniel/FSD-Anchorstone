@@ -27,14 +27,17 @@ class TaskDef:
     # A task that processes a client's personal data for a consent-based purpose (e.g. AI document
     # reading) declares it; the job is refused at enqueue and at run without that client's consent.
     consent_purpose: str | None = None
+    # Called (args, message) when a queued job is refused at run time because the consent was withdrawn
+    # meanwhile, so the task can close its own record. The job fails at once (retrying can't help).
+    on_consent_refused: Callable[[dict, str], None] | None = None
 
 
 def task(name: str, queue: str = "default", max_attempts: int = 3, timeout_seconds: int = 600,
-         consent_purpose: str | None = None):
+         consent_purpose: str | None = None, on_consent_refused: Callable[[dict, str], None] | None = None):
     def decorator(fn):
         if name in TASKS:
             raise TypeError(f"Duplicate task {name}")
-        TASKS[name] = TaskDef(name, fn, queue, max_attempts, timeout_seconds, consent_purpose)
+        TASKS[name] = TaskDef(name, fn, queue, max_attempts, timeout_seconds, consent_purpose, on_consent_refused)
         return fn
     return decorator
 

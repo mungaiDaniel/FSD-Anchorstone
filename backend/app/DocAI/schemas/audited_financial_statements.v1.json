@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audited_financial_statements.v1",
+  "title": "Audited financial statements (audited_financial_statements.v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "detected_document_type",
+    "readable",
+    "unreadable_reason",
+    "page_count_seen",
+    "fields",
+    "warnings"
+  ],
+  "properties": {
+    "detected_document_type": {
+      "type": "string",
+      "enum": [
+        "national_id",
+        "passport",
+        "kra_pin",
+        "cr12",
+        "certificate_of_incorporation",
+        "bank_statement",
+        "mpesa_statement",
+        "audited_financial_statements",
+        "title_deed",
+        "logbook",
+        "valuation_report",
+        "crb_report",
+        "other"
+      ],
+      "description": "What this document actually is, whatever it was declared as."
+    },
+    "readable": {
+      "type": "boolean",
+      "description": "False if the page or document can't be read reliably."
+    },
+    "unreadable_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why it can't be read (blur, glare, cropped, too dark ...), or null."
+    },
+    "page_count_seen": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_name",
+        "auditor",
+        "year_end",
+        "opinion_type",
+        "currency",
+        "units",
+        "revenue",
+        "cost_of_sales",
+        "operating_profit",
+        "finance_costs",
+        "net_profit",
+        "total_assets",
+        "current_assets",
+        "current_liabilities",
+        "total_liabilities",
+        "equity",
+        "cash"
+      ],
+      "properties": {
+        "entity_name": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "auditor": {
+          "$ref": "#/$defs/field",
+          "description": "Audit firm."
+        },
+        "year_end": {
+          "$ref": "#/$defs/field",
+          "description": "Financial year end. Date as YYYY-MM-DD."
+        },
+        "opinion_type": {
+          "$ref": "#/$defs/field",
+          "description": "unqualified, qualified, adverse or disclaimer."
+        },
+        "currency": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "units": {
+          "$ref": "#/$defs/field",
+          "description": "How amounts are shown, e.g. KES or KES '000."
+        },
+        "revenue": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "cost_of_sales": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "operating_profit": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "finance_costs": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "net_profit": {
+          "$ref": "#/$defs/field",
+          "description": "Profit after tax (negative for a loss). Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "total_assets": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "current_assets": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "current_liabilities": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "total_liabilities": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "equity": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        },
+        "cash": {
+          "$ref": "#/$defs/field",
+          "description": "Cash and cash equivalents. Amount as a plain number with 2 decimals, no commas or currency; negative with a leading minus, e.g. -1250.00."
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "confidence",
+        "source_page",
+        "source_text",
+        "legibility",
+        "notes"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exactly what is printed (normalised as described), or null if it is absent or can't be read."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 to 1: how sure you are the value is read correctly."
+        },
+        "source_page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based page the value is on."
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "maxLength": 120,
+          "description": "Up to 80 characters copied from around the value."
+        },
+        "legibility": {
+          "type": "string",
+          "enum": [
+            "good",
+            "partial",
+            "unreadable"
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Anything the reviewer should know, or null."
+        }
+      }
+    }
+  }
+}

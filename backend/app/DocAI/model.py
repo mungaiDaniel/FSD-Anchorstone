@@ -32,7 +32,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database.database import db
 from app.utils.dates import iso
@@ -87,6 +87,7 @@ class Extraction(Base, db.Model):
     detected_document_type = Column(String(50), nullable=True)
     readable = Column(Boolean, nullable=True)
     page_count = Column(Integer, nullable=True)
+    warnings = Column(JSONB, nullable=True)  # what the model flagged for the reviewer (stamps, missing pages …)
     # Fixed when requested, so a re-run of the same row reads the same way (AI-10).
     model_requested = Column(String(80), nullable=False)
     effort = Column(String(10), nullable=False)
@@ -113,7 +114,7 @@ class Extraction(Base, db.Model):
             "declared_type": self.declared_type, "status": self.status,
             "status_label": STATUS_LABELS[self.status], "status_reason": self.status_reason,
             "detected_document_type": self.detected_document_type, "readable": self.readable,
-            "page_count": self.page_count, "model_requested": self.model_requested, "effort": self.effort,
+            "page_count": self.page_count, "warnings": self.warnings or [], "model_requested": self.model_requested, "effort": self.effort,
             "prompt_version": self.prompt_version, "prompt_sha256": self.prompt_sha256,
             "schema_version": self.schema_version, "schema_sha256": self.schema_sha256,
             "document_sha256": self.document_sha256, "input_tokens": self.input_tokens,

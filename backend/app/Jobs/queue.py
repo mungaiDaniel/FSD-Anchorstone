@@ -27,6 +27,10 @@ from app.utils.http import Forbidden, ValidationError
 
 logger = logging.getLogger(__name__)
 
+
+class ConsentRequired(Forbidden):
+    """The client hasn't (or no longer has) consented to the task's purpose."""
+
 HEARTBEAT_SECONDS = 20
 BACKOFF_BASE_SECONDS = 30
 BACKOFF_MAX_SECONDS = 3600
@@ -43,7 +47,7 @@ def assert_consent(task, args: dict) -> None:
         raise ValidationError(f"{task.name} needs the client (party_id) it processes.")
     if not has_consent(party_id, task.consent_purpose):
         label = PURPOSE_LABELS.get(task.consent_purpose, task.consent_purpose)
-        raise Forbidden(f"The client hasn't consented to {label}. Record the consent first, or capture the "
+        raise ConsentRequired(f"The client hasn't consented to {label}. Record the consent first, or capture the "
                         "details by hand.")
 
 
@@ -109,10 +113,18 @@ def run(job_id: int, worker_id: str, app=None) -> str:
     if app is not None:
         beat = threading.Thread(target=_beat, args=(app, job_id, worker_id, stop), daemon=True)
         beat.start()
+    refused = False
     try:
         if task is None:
             raise RuntimeError(f"No task registered for {job.name}")
-        assert_consent(task, job.args or {})  # consent may have been withdrawn since it was queued
+        try:
+            assert_consent(task, job.args or {})  # consent may have been withdrawn since it was queued
+        except ConsentRequired as e:
+            refused = True
+            if task.on_consent_refused is not None:
+                task.on_consent_refused(dict(job.args or {}), e.message)
+                db.session.commit()
+            raise
         result = task.fn(dict(job.args or {}))
         db.session.commit()  # whatever the task left uncommitted
         status, error = JOB_SUCCEEDED, None
@@ -135,7 +147,7 @@ def run(job_id: int, worker_id: str, app=None) -> str:
         return job.status
     if status == JOB_SUCCEEDED:
         job.status, job.result, job.finished_at, job.last_error = JOB_SUCCEEDED, _jsonable(result), now, None
-    elif job.attempts < job.max_attempts:
+    elif job.attempts < job.max_attempts and not refused:
         job.status, job.run_at, job.last_error = JOB_QUEUED, now + backoff(job.attempts), error
     else:
         job.status, job.finished_at, job.last_error = JOB_FAILED, now, error

@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cr12.v1",
+  "title": "CR12 (company officials and shareholders) (cr12.v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "detected_document_type",
+    "readable",
+    "unreadable_reason",
+    "page_count_seen",
+    "fields",
+    "warnings"
+  ],
+  "properties": {
+    "detected_document_type": {
+      "type": "string",
+      "enum": [
+        "national_id",
+        "passport",
+        "kra_pin",
+        "cr12",
+        "certificate_of_incorporation",
+        "bank_statement",
+        "mpesa_statement",
+        "audited_financial_statements",
+        "title_deed",
+        "logbook",
+        "valuation_report",
+        "crb_report",
+        "other"
+      ],
+      "description": "What this document actually is, whatever it was declared as."
+    },
+    "readable": {
+      "type": "boolean",
+      "description": "False if the page or document can't be read reliably."
+    },
+    "unreadable_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why it can't be read (blur, glare, cropped, too dark ...), or null."
+    },
+    "page_count_seen": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "company_name",
+        "registration_number",
+        "cr12_date",
+        "registered_office",
+        "secretary",
+        "directors",
+        "shareholders"
+      ],
+      "properties": {
+        "company_name": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "registration_number": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "cr12_date": {
+          "$ref": "#/$defs/field",
+          "description": "Date the CR12 was issued. Date as YYYY-MM-DD."
+        },
+        "registered_office": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "secretary": {
+          "$ref": "#/$defs/field",
+          "description": "Company secretary's name, if listed."
+        },
+        "directors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "id_or_passport_number",
+              "nationality",
+              "shares"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/field",
+                "description": "As printed."
+              },
+              "id_or_passport_number": {
+                "$ref": "#/$defs/field",
+                "description": "As printed."
+              },
+              "nationality": {
+                "$ref": "#/$defs/field",
+                "description": "As printed."
+              },
+              "shares": {
+                "$ref": "#/$defs/field",
+                "description": "Number of shares held, if shown. Whole number, digits only."
+              }
+            }
+          }
+        },
+        "shareholders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "share_class",
+              "number_of_shares"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/field",
+                "description": "As printed."
+              },
+              "share_class": {
+                "$ref": "#/$defs/field",
+                "description": "As printed."
+              },
+              "number_of_shares": {
+                "$ref": "#/$defs/field",
+                "description": "Whole number, digits only."
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "confidence",
+        "source_page",
+        "source_text",
+        "legibility",
+        "notes"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exactly what is printed (normalised as described), or null if it is absent or can't be read."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 to 1: how sure you are the value is read correctly."
+        },
+        "source_page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based page the value is on."
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "maxLength": 120,
+          "description": "Up to 80 characters copied from around the value."
+        },
+        "legibility": {
+          "type": "string",
+          "enum": [
+            "good",
+            "partial",
+            "unreadable"
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Anything the reviewer should know, or null."
+        }
+      }
+    }
+  }
+}

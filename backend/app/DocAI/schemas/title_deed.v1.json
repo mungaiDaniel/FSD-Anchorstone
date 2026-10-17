@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "title_deed.v1",
+  "title": "Title deed / certificate of lease (title_deed.v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "detected_document_type",
+    "readable",
+    "unreadable_reason",
+    "page_count_seen",
+    "fields",
+    "warnings"
+  ],
+  "properties": {
+    "detected_document_type": {
+      "type": "string",
+      "enum": [
+        "national_id",
+        "passport",
+        "kra_pin",
+        "cr12",
+        "certificate_of_incorporation",
+        "bank_statement",
+        "mpesa_statement",
+        "audited_financial_statements",
+        "title_deed",
+        "logbook",
+        "valuation_report",
+        "crb_report",
+        "other"
+      ],
+      "description": "What this document actually is, whatever it was declared as."
+    },
+    "readable": {
+      "type": "boolean",
+      "description": "False if the page or document can't be read reliably."
+    },
+    "unreadable_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why it can't be read (blur, glare, cropped, too dark ...), or null."
+    },
+    "page_count_seen": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title_number",
+        "registration_section",
+        "parcel_number",
+        "area",
+        "registered_proprietors",
+        "tenure",
+        "lease_term",
+        "encumbrances",
+        "registration_date"
+      ],
+      "properties": {
+        "title_number": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "registration_section": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "parcel_number": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "area": {
+          "$ref": "#/$defs/field",
+          "description": "Area with its unit, as printed."
+        },
+        "registered_proprietors": {
+          "$ref": "#/$defs/field",
+          "description": "All registered owners, separated by semicolons."
+        },
+        "tenure": {
+          "$ref": "#/$defs/field",
+          "description": "freehold or leasehold."
+        },
+        "lease_term": {
+          "$ref": "#/$defs/field",
+          "description": "Term of a lease, if leasehold."
+        },
+        "encumbrances": {
+          "$ref": "#/$defs/field",
+          "description": "Charges, cautions or restrictions listed, separated by semicolons."
+        },
+        "registration_date": {
+          "$ref": "#/$defs/field",
+          "description": "Date as YYYY-MM-DD."
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "confidence",
+        "source_page",
+        "source_text",
+        "legibility",
+        "notes"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exactly what is printed (normalised as described), or null if it is absent or can't be read."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 to 1: how sure you are the value is read correctly."
+        },
+        "source_page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based page the value is on."
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "maxLength": 120,
+          "description": "Up to 80 characters copied from around the value."
+        },
+        "legibility": {
+          "type": "string",
+          "enum": [
+            "good",
+            "partial",
+            "unreadable"
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Anything the reviewer should know, or null."
+        }
+      }
+    }
+  }
+}

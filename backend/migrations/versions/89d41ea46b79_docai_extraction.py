@@ -20,6 +20,7 @@ import json
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -97,6 +98,7 @@ def upgrade():
     sa.Column('detected_document_type', sa.String(length=50), nullable=True),
     sa.Column('readable', sa.Boolean(), nullable=True),
     sa.Column('page_count', sa.Integer(), nullable=True),
+    sa.Column('warnings', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('model_requested', sa.String(length=80), nullable=False),
     sa.Column('effort', sa.String(length=10), nullable=False),
     sa.Column('prompt_version', sa.String(length=40), nullable=False),

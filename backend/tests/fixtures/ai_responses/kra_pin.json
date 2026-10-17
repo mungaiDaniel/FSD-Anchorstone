@@ -1,0 +1,62 @@
+{
+  "_comment": "SYNTHETIC recorded response for tests: written by hand for the matching file in tests/fixtures/documents (not a real client, not from a real API call). Token counts are realistic estimates for claude-opus-5-5.",
+  "id": "msg_sample_kra_pin",
+  "request_id": "req_sample_kra_pin",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 3400,
+    "output_tokens": 700,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "answer": {
+    "detected_document_type": "kra_pin",
+    "readable": true,
+    "unreadable_reason": null,
+    "page_count_seen": 1,
+    "fields": {
+      "kra_pin": {
+        "value": "A000000000Z",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "A000000000Z",
+        "legibility": "good",
+        "notes": null
+      },
+      "taxpayer_name": {
+        "value": "TESTA SAMPLE MOCKERSON",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "TESTA SAMPLE MOCKERSON",
+        "legibility": "good",
+        "notes": null
+      },
+      "taxpayer_type": {
+        "value": "Individual",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "Individual",
+        "legibility": "good",
+        "notes": null
+      },
+      "registration_date": {
+        "value": "2016-02-20",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "2016-02-20",
+        "legibility": "good",
+        "notes": null
+      },
+      "tax_obligations": {
+        "value": "Income Tax - Resident Individual",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "Income Tax - Resident Individual",
+        "legibility": "good",
+        "notes": null
+      }
+    },
+    "warnings": []
+  }
+}

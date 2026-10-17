@@ -1,0 +1,87 @@
+{
+  "_comment": "SYNTHETIC recorded response for tests: written by hand for the matching file in tests/fixtures/documents (not a real client, not from a real API call). Token counts are realistic estimates for claude-opus-5-5.",
+  "id": "msg_sample_national_id_missing_source_page",
+  "request_id": "req_sample_national_id_missing_source_page",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 2950,
+    "output_tokens": 960,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "answer": {
+    "detected_document_type": "national_id",
+    "readable": true,
+    "unreadable_reason": null,
+    "page_count_seen": 1,
+    "fields": {
+      "id_number": {
+        "value": "00000001",
+        "confidence": 0.98,
+        "source_text": "ID NUMBER 00000001",
+        "legibility": "good",
+        "notes": null
+      },
+      "full_name": {
+        "value": "TESTA SAMPLE MOCKERSON",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "FULL NAMES TESTA SAMPLE MOCKERSON",
+        "legibility": "good",
+        "notes": null
+      },
+      "date_of_birth": {
+        "value": "1990-01-01",
+        "confidence": 0.96,
+        "source_page": 1,
+        "source_text": "DATE OF BIRTH 01.01.1990",
+        "legibility": "good",
+        "notes": null
+      },
+      "sex": {
+        "value": "F",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "SEX FEMALE",
+        "legibility": "good",
+        "notes": null
+      },
+      "place_of_birth": {
+        "value": null,
+        "confidence": 0.0,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": "Not printed on this card (only district of birth)."
+      },
+      "date_of_issue": {
+        "value": "2015-06-15",
+        "confidence": 0.95,
+        "source_page": 1,
+        "source_text": "DATE OF ISSUE 15.06.2015",
+        "legibility": "good",
+        "notes": null
+      },
+      "serial_number": {
+        "value": "000000001",
+        "confidence": 0.94,
+        "source_page": 1,
+        "source_text": "SERIAL NUMBER 000000001",
+        "legibility": "good",
+        "notes": null
+      },
+      "district": {
+        "value": "SAMPLE DISTRICT",
+        "confidence": 0.93,
+        "source_page": 1,
+        "source_text": "DISTRICT OF BIRTH SAMPLE DISTRICT",
+        "legibility": "good",
+        "notes": null
+      }
+    },
+    "warnings": [
+      "The card is marked SAMPLE — NOT A REAL DOCUMENT."
+    ]
+  }
+}

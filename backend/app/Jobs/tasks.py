@@ -84,3 +84,17 @@ def screening_rescreen(args: dict):
 def noop(args: dict):
     """Does nothing; used to check a worker is alive (and by tests)."""
     return {"ok": True, "echo": args.get("echo")}
+
+
+def _ai_consent_refused(args: dict, message: str):
+    from app.DocAI.service import refuse_for_withdrawn_consent
+    refuse_for_withdrawn_consent(args, message)
+
+
+@task("ai.extract_document", queue="ai", timeout_seconds=1800, consent_purpose="ai_document_processing",
+      on_consent_refused=_ai_consent_refused)
+def ai_extract_document(args: dict):
+    """Read one client document with the AI (app/DocAI/extractor.py). Safe to run again: a finished
+    extraction is skipped; one left 'running' by a dead worker is read afresh (new call records)."""
+    from app.DocAI.extractor import run_extraction
+    return run_extraction(int(args["extraction_id"]))

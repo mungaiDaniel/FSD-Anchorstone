@@ -1,0 +1,94 @@
+{
+  "_comment": "SYNTHETIC recorded response for tests: written by hand for the matching file in tests/fixtures/documents (not a real client, not from a real API call). Token counts are realistic estimates for claude-opus-5-5.",
+  "id": "msg_sample_logbook",
+  "request_id": "req_sample_logbook",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 3500,
+    "output_tokens": 950,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "answer": {
+    "detected_document_type": "logbook",
+    "readable": true,
+    "unreadable_reason": null,
+    "page_count_seen": 1,
+    "fields": {
+      "registration_number": {
+        "value": "KZZ 000Z",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "KZZ 000Z",
+        "legibility": "good",
+        "notes": null
+      },
+      "make": {
+        "value": "SAMPLEMOTORS",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "SAMPLEMOTORS",
+        "legibility": "good",
+        "notes": null
+      },
+      "model": {
+        "value": "EXAMPLE 1.5",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "EXAMPLE 1.5",
+        "legibility": "good",
+        "notes": null
+      },
+      "year_of_manufacture": {
+        "value": "2019",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "2019",
+        "legibility": "good",
+        "notes": null
+      },
+      "chassis_number": {
+        "value": "SMPL0000000000000",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "SMPL0000000000000",
+        "legibility": "good",
+        "notes": null
+      },
+      "engine_number": {
+        "value": "ENG000000",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "ENG000000",
+        "legibility": "good",
+        "notes": null
+      },
+      "registered_owners": {
+        "value": "TESTA SAMPLE MOCKERSON",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "TESTA SAMPLE MOCKERSON",
+        "legibility": "good",
+        "notes": null
+      },
+      "financier_interest": {
+        "value": null,
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": null,
+        "legibility": "good",
+        "notes": null
+      },
+      "colour": {
+        "value": "WHITE",
+        "confidence": 0.97,
+        "source_page": 1,
+        "source_text": "WHITE",
+        "legibility": "good",
+        "notes": null
+      }
+    },
+    "warnings": []
+  }
+}

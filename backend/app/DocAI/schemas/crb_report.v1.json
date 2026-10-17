@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "crb_report.v1",
+  "title": "Credit reference bureau (CRB) report (crb_report.v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "detected_document_type",
+    "readable",
+    "unreadable_reason",
+    "page_count_seen",
+    "fields",
+    "warnings"
+  ],
+  "properties": {
+    "detected_document_type": {
+      "type": "string",
+      "enum": [
+        "national_id",
+        "passport",
+        "kra_pin",
+        "cr12",
+        "certificate_of_incorporation",
+        "bank_statement",
+        "mpesa_statement",
+        "audited_financial_statements",
+        "title_deed",
+        "logbook",
+        "valuation_report",
+        "crb_report",
+        "other"
+      ],
+      "description": "What this document actually is, whatever it was declared as."
+    },
+    "readable": {
+      "type": "boolean",
+      "description": "False if the page or document can't be read reliably."
+    },
+    "unreadable_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why it can't be read (blur, glare, cropped, too dark ...), or null."
+    },
+    "page_count_seen": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bureau_name",
+        "report_date",
+        "subject_name",
+        "subject_id_number",
+        "credit_score",
+        "score_band",
+        "total_accounts",
+        "open_accounts",
+        "non_performing_accounts",
+        "total_outstanding",
+        "total_in_arrears",
+        "defaults_listed",
+        "enquiries_last_90_days"
+      ],
+      "properties": {
+        "bureau_name": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "report_date": {
+          "$ref": "#/$defs/field",
+          "description": "Date as YYYY-MM-DD."
+        },
+        "subject_name": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "subject_id_number": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "credit_score": {
+          "$ref": "#/$defs/field",
+          "description": "Whole number, digits only."
+        },
+        "score_band": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "total_accounts": {
+          "$ref": "#/$defs/field",
+          "description": "Whole number, digits only."
+        },
+        "open_accounts": {
+          "$ref": "#/$defs/field",
+          "description": "Whole number, digits only."
+        },
+        "non_performing_accounts": {
+          "$ref": "#/$defs/field",
+          "description": "Whole number, digits only."
+        },
+        "total_outstanding": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency, e.g. 12500.00."
+        },
+        "total_in_arrears": {
+          "$ref": "#/$defs/field",
+          "description": "Amount as a plain number with 2 decimals, no commas or currency, e.g. 12500.00."
+        },
+        "defaults_listed": {
+          "$ref": "#/$defs/field",
+          "description": "Lenders reporting defaults or listings, separated by semicolons."
+        },
+        "enquiries_last_90_days": {
+          "$ref": "#/$defs/field",
+          "description": "Whole number, digits only."
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "confidence",
+        "source_page",
+        "source_text",
+        "legibility",
+        "notes"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exactly what is printed (normalised as described), or null if it is absent or can't be read."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 to 1: how sure you are the value is read correctly."
+        },
+        "source_page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based page the value is on."
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "maxLength": 120,
+          "description": "Up to 80 characters copied from around the value."
+        },
+        "legibility": {
+          "type": "string",
+          "enum": [
+            "good",
+            "partial",
+            "unreadable"
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Anything the reviewer should know, or null."
+        }
+      }
+    }
+  }
+}

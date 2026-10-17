@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mpesa_statement.v1",
+  "title": "M-Pesa statement (mpesa_statement.v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "detected_document_type",
+    "readable",
+    "unreadable_reason",
+    "page_number",
+    "rows_order",
+    "header",
+    "page_opening_balance",
+    "page_closing_balance",
+    "transactions",
+    "warnings"
+  ],
+  "properties": {
+    "detected_document_type": {
+      "type": "string",
+      "enum": [
+        "national_id",
+        "passport",
+        "kra_pin",
+        "cr12",
+        "certificate_of_incorporation",
+        "bank_statement",
+        "mpesa_statement",
+        "audited_financial_statements",
+        "title_deed",
+        "logbook",
+        "valuation_report",
+        "crb_report",
+        "other"
+      ],
+      "description": "What this document actually is, whatever it was declared as."
+    },
+    "readable": {
+      "type": "boolean",
+      "description": "False if the page or document can't be read reliably."
+    },
+    "unreadable_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why it can't be read (blur, glare, cropped, too dark ...), or null."
+    },
+    "page_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "rows_order": {
+      "type": "string",
+      "enum": [
+        "oldest_first",
+        "newest_first"
+      ],
+      "description": "The order the rows are printed in on this page."
+    },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "customer_name",
+        "mobile_number_last4",
+        "period_from",
+        "period_to"
+      ],
+      "properties": {
+        "customer_name": {
+          "$ref": "#/$defs/field",
+          "description": "As printed."
+        },
+        "mobile_number_last4": {
+          "$ref": "#/$defs/field",
+          "description": "Only the last 4 digits of the phone number."
+        },
+        "period_from": {
+          "$ref": "#/$defs/field",
+          "description": "Start of the statement period. Date as YYYY-MM-DD."
+        },
+        "period_to": {
+          "$ref": "#/$defs/field",
+          "description": "End of the statement period. Date as YYYY-MM-DD."
+        }
+      },
+      "description": "Statement details printed on this page (null values for anything not on this page)."
+    },
+    "page_opening_balance": {
+      "$ref": "#/$defs/field",
+      "description": "Balance brought forward / opening balance printed on this page, or null value if none is printed."
+    },
+    "page_closing_balance": {
+      "$ref": "#/$defs/field",
+      "description": "Balance carried forward / closing balance printed on this page, or null value if none is printed."
+    },
+    "transactions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "confidence",
+        "source_page",
+        "source_text",
+        "legibility",
+        "notes"
+      ],
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exactly what is printed (normalised as described), or null if it is absent or can't be read."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 to 1: how sure you are the value is read correctly."
+        },
+        "source_page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based page the value is on."
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "maxLength": 120,
+          "description": "Up to 80 characters copied from around the value."
+        },
+        "legibility": {
+          "type": "string",
+          "enum": [
+            "good",
+            "partial",
+            "unreadable"
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Anything the reviewer should know, or null."
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "date",
+        "description",
+        "reference",
+        "debit",
+        "credit",
+        "balance",
+        "confidence"
+      ],
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Row number as listed on the page, from 1."
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Transaction or completion date as YYYY-MM-DD."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Narrative / details, as printed."
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Reference, cheque or receipt number, if any."
+        },
+        "debit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Money out (withdrawn / paid out), plain number with 2 decimals, or null."
+        },
+        "credit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Money in (paid in / deposited), plain number with 2 decimals, or null."
+        },
+        "balance": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Running balance printed on the row, or null."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}
