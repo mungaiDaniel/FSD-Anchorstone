@@ -109,6 +109,12 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/parties/<int:party_id>/documents/<uuid:document_id>/extractions"),
     ("GET", "/api/v1/parties/<int:party_id>/extractions"), ("GET", "/api/v1/extractions/<int:extraction_id>"),
     ("POST", "/api/v1/extractions/<int:extraction_id>/retry"),
+    # Phase 3b: pre-screen applications
+    ("GET", "/api/v1/applications"), ("POST", "/api/v1/applications"), ("GET", "/api/v1/applications/estimate"),
+    ("GET", "/api/v1/applications/<int:application_id>"),
+    ("POST", "/api/v1/applications/<int:application_id>/guarantors"),
+    ("POST", "/api/v1/applications/<int:application_id>/documents"),
+    ("POST", "/api/v1/applications/<int:application_id>/crb"),
 }
 
 

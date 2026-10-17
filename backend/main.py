@@ -35,6 +35,10 @@ def _import_models():
         Department, Permission, Role, RolePermission, SodConflict, TransactionLimit, UserBranchScope, UserRole,
     )
     from app.Admin.model import AccountLockout, LoginAttempt, User  # noqa: F401
+    from app.Applications.model import (  # noqa: F401
+        ApplicationCrbStatus, ApplicationParty, CreditDecision, ExtractionReview, FieldReview, LoanApplication,
+        ScreeningRuleResult, ScreeningRun, TransactionReview,
+    )
     from app.Approvals.model import ApprovalPolicy, ChangeRequest, ChangeRequestEvent  # noqa: F401
     from app.Backup.model import BackupLog  # noqa: F401
     from app.Branches.model import Branch  # noqa: F401
@@ -98,6 +102,7 @@ def create_app(config_name: str | None = None) -> Flask:
     register_error_handlers(app, db)
 
     from app.Admin.route import user_v1
+    from app.Applications.route import applications_v1
     from app.Approvals.handlers import load_handlers
     from app.Approvals.route import approvals_v1
     from app.Audit.route import audit_v1
@@ -115,7 +120,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     for bp in (user_v1, investors_v1, transactions_v1, interest_v1, emails_v1, stats_v1,
                settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1, parties_v1,
-               docai_v1):
+               docai_v1, applications_v1):
         app.register_blueprint(bp)
     load_handlers()
     from app.Jobs.registry import load_tasks

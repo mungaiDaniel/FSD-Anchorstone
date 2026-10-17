@@ -141,6 +141,7 @@ def clean_db(app):
             db.session.execute(text("SELECT setval(:s, 1, false)"), {"s": seq})
         db.session.execute(text("ALTER SEQUENCE investor_client_code_seq RESTART WITH 1"))
         db.session.execute(text("ALTER SEQUENCE party_no_seq RESTART WITH 1"))
+        db.session.execute(text("ALTER SEQUENCE application_no_seq RESTART WITH 1"))
         _restore_reference_data()
         db.session.commit()
         yield
