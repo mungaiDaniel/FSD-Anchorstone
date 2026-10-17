@@ -29,8 +29,12 @@ This is new; it isn't in the FSD.
 > - **Human decisions**, with a second approver for proceeding against "Not qualified".
 > - The **decision log** and the **usage and accuracy views**.
 >
+> **Budgets and the circuit breaker** (§11) are in `DocAI/guard.py`. Every call, including retries and repairs, is
+> checked against the kill switch, the pause flag, the model's price and three budgets (per reading, per application,
+> monthly). Refusals are recorded. The breaker pauses after repeated failures and alerts admins; an admin resumes it.
+>
 > Not built yet: backtesting a rule-set draft (§7.2), `screening replay` as a CLI (the tests re-evaluate stored runs
-> instead), budgets, and the "confirm all" bulk action (Q-C8).
+> instead), and the "confirm all" bulk action (Q-C8).
 >
 > **Requirement IDs**, as used by the phase briefs. The FSD's §15 rows have no numbers.
 >

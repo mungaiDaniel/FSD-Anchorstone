@@ -59,6 +59,7 @@ import type {
   ReportName,
   ReportSchedule,
   AiAccuracyRow,
+  AiStatus,
   AiUsageMonth,
   ApplicationDetail,
   ApplicationInput,
@@ -436,4 +437,7 @@ export const aiService = {
       { value: { rules }, source: "client_confirmed", evidence, reason }),
   usage: (months = 12) => get<{ months: AiUsageMonth[]; currency: string; note: string }>(API.AI_USAGE, { months }),
   accuracy: () => get<AiAccuracyRow[]>(API.AI_ACCURACY),
+  status: () => get<AiStatus>(API.AI_STATUS),
+  /** Admin only, audited: after the circuit breaker paused AI reading. */
+  resume: (reason: string) => send<AiStatus>("post", API.AI_RESUME, { reason }),
 };

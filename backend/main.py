@@ -43,8 +43,8 @@ def _import_models():
     from app.Backup.model import BackupLog  # noqa: F401
     from app.Branches.model import Branch  # noqa: F401
     from app.DocAI.model import (  # noqa: F401
-        ExtractedField, Extraction, ExtractionCall, StatementMetric, StatementMetricInput, StatementPage,
-        StatementTransaction,
+        AIBudgetRefusal, AIServiceState, ExtractedField, Extraction, ExtractionCall, StatementMetric,
+        StatementMetricInput, StatementPage, StatementTransaction,
     )
     from app.Documents.model import DataAccessLog, Document, DocumentLink  # noqa: F401
     from app.Emails.model import EmailAttachment, OutboxEmail  # noqa: F401

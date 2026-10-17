@@ -174,6 +174,8 @@ export const API = {
   RULE_SET: "/screening/rule-set",
   AI_USAGE: "/ai/usage",
   AI_ACCURACY: "/ai/accuracy",
+  AI_STATUS: "/ai/status",
+  AI_RESUME: "/ai/resume",
   BRANCHES: "/branches",
 } as const;
 

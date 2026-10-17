@@ -4,8 +4,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { Card, PageHeader, SegmentedTabs } from "@/components/ui/Page";
 import { Modal } from "@/components/ui/Modal";
 import { aiService } from "@/services";
-import type { AiAccuracyRow, AiUsageMonth, Rule, RuleSetInfo } from "@/lib/types";
-import { apiErrorMessage } from "@/lib/utils";
+import type { AiAccuracyRow, AiStatus, AiUsageMonth, Rule, RuleSetInfo } from "@/lib/types";
+import { apiErrorMessage, formatDateTime } from "@/lib/utils";
 
 type Tab = "rules" | "usage" | "accuracy";
 const TABS: { key: Tab; label: string }[] = [
@@ -155,15 +155,71 @@ function RuleSetEditor() {
 
 // ── Usage and accuracy ──
 
+function ServiceStatus() {
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [resuming, setResuming] = useState(false);
+  const [reason, setReason] = useState("");
+  const load = useCallback(() => { aiService.status().then(setStatus).catch((e) => toast.error(apiErrorMessage(e))); }, []);
+  useEffect(load, [load]);
+  if (!status) return null;
+  const resume = () => aiService.resume(reason).then(() => { toast.success("AI reading resumed."); setResuming(false); setReason(""); load(); })
+    .catch((e) => toast.error(apiErrorMessage(e)));
+  return (
+    <Card title="Service and budgets">
+      {status.status === "paused" ? (
+        <div className="alert alert-danger d-flex flex-wrap align-items-center justify-content-between gap-2 py-2" style={{ fontSize: 13 }}>
+          <span><b>Paused by the circuit breaker</b> since {formatDateTime(status.paused_at)}: {status.paused_reason}</span>
+          <button className="btn btn-sm btn-outline-danger" onClick={() => setResuming(true)}>Resume</button>
+        </div>
+      ) : (
+        <p className="tw:text-[13px] mb-2">
+          {status.enabled ? "Running." : "Switched off (ai.enabled)."} The breaker pauses after {status.breaker.consecutive_failures} failed
+          calls in a row, or more than {status.breaker.window_failures} in {status.breaker.window_minutes} minutes.
+          {status.resumed_by && <span className="tw:text-text-tertiary"> Last resumed by {status.resumed_by} on {formatDateTime(status.resumed_at)}.</span>}
+        </p>
+      )}
+      <div className="row g-3 tw:text-[13px]">
+        <div className="col-sm-4">This month: <b>US${Number(status.spent_this_month_usd).toFixed(2)}</b> of US${status.budgets.monthly_usd}</div>
+        <div className="col-sm-4">Per application: US${status.budgets.per_application_usd}</div>
+        <div className="col-sm-4">Per reading: US${status.budgets.per_run_usd}</div>
+      </div>
+      {status.recent_refusals.length > 0 && (
+        <>
+          <p className="app-section-label mt-3 mb-1">Calls refused before they were made</p>
+          <table className="table table-sm mb-0 tw:text-[13px]">
+            <thead><tr><th>When</th><th>Why</th><th>Reading</th><th className="text-end">Spent + estimate / limit (US$)</th></tr></thead>
+            <tbody>
+              {status.recent_refusals.map((r) => (
+                <tr key={r.id} title={r.message}>
+                  <td className="nowrap">{formatDateTime(r.refused_at)}</td><td>{r.label}</td>
+                  <td>{r.extraction_id}{r.page_number ? ` p. ${r.page_number}` : ""}{r.application_id ? ` · application ${r.application_id}` : ""}</td>
+                  <td className="text-end font-tabular">{r.limit_usd ? `${Number(r.spent_usd).toFixed(4)} + ${Number(r.estimate_usd).toFixed(4)} / ${Number(r.limit_usd).toFixed(2)}` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      <Modal title="Resume AI document reading" open={resuming} onClose={() => setResuming(false)} onSubmit={resume}
+        submitLabel="Resume" submitDisabled={!reason.trim()}>
+        <p className="tw:text-[13px] tw:text-text-secondary">Readings that failed while paused stay failed: retry them from their application.</p>
+        <label className="form-label" htmlFor="resume-reason">Why is it safe to resume? (recorded in the audit log)</label>
+        <input id="resume-reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
+      </Modal>
+    </Card>
+  );
+}
+
 function Usage() {
   const [months, setMonths] = useState<AiUsageMonth[] | null>(null);
   useEffect(() => { aiService.usage().then((d) => setMonths(d.months)).catch((e) => toast.error(apiErrorMessage(e))); }, []);
   if (!months) return <p className="tw:text-text-tertiary">Loading…</p>;
-  if (months.length === 0) return <Card title="Usage"><p className="tw:text-text-tertiary mb-0">No documents read yet.</p></Card>;
+  if (months.length === 0) return <div className="d-flex flex-column gap-3"><ServiceStatus /><Card title="Usage"><p className="tw:text-text-tertiary mb-0">No documents read yet.</p></Card></div>;
   return (
     <div className="d-flex flex-column gap-3">
+      <ServiceStatus />
       {months.map((m) => (
-        <Card key={m.month} title={`${m.month} · US$${Number(m.cost_usd).toFixed(2)} estimated · ${m.readings} reading(s), ${m.calls} call(s)`}>
+        <Card key={m.month} title={`${m.month} · US$${Number(m.cost_usd).toFixed(2)} · ${m.readings} reading(s), ${m.calls} call(s)${m.refusals.length ? ` · ${m.refusals.length} refused` : ""}`}>
           <table className="table app-table mb-0">
             <thead><tr><th>Document type</th><th>Model</th><th className="text-end">Readings</th><th className="text-end">Calls</th>
               <th className="text-end">Tokens in / out</th><th className="text-end">Cost (US$)</th><th className="text-end">Per reading</th></tr></thead>

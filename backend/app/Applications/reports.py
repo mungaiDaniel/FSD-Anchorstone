@@ -11,6 +11,7 @@ Oversight of AI extraction and pre-selection (AI-10, AI-12, AI-13).
                                     each correction beside the AI value, confirmed metrics, checks,
                                     every rule result with its reason, CRB status, decisions
 """
+from datetime import timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, text
@@ -63,6 +64,16 @@ def usage(months: int = 12) -> dict:
         month["cost_usd"] += cost
     for month in out.values():
         month["cost_usd"] = f"{month['cost_usd']:.6f}"
+        month["refusals"] = []
+    from app.DocAI.model import AIBudgetRefusal
+    for refusal in AIBudgetRefusal.query.order_by(AIBudgetRefusal.refused_at.desc(), AIBudgetRefusal.id.desc()):
+        label = (refusal.refused_at + timedelta(hours=3)).strftime("%Y-%m")
+        if label in keep and label in out:
+            out[label]["refusals"].append(refusal.to_dict())
+        elif label not in out and len(out) < max(1, min(months, 60)):
+            out[label] = {"month": label, "calls": 0, "readings": 0, "input_tokens": 0, "output_tokens": 0,
+                          "cost_usd": "0.000000", "by_type": [], "refusals": [refusal.to_dict()]}
+            keep = sorted(set(keep) | {label}, reverse=True)
     return {"months": [out[m] for m in keep if m in out], "currency": "USD",
             "note": "Estimated from tokens × ai.price_table at the time of each call."}
 

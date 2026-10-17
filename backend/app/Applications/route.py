@@ -220,3 +220,18 @@ def ai_usage():
 def ai_accuracy():
     from app.Applications import reports
     return ok(reports.accuracy())
+
+
+@applications_v1.get("/api/v1/ai/status")
+@requires("ai.extract.view")
+def ai_status():
+    from app.DocAI import guard
+    return ok(guard.status())
+
+
+@applications_v1.post("/api/v1/ai/resume")
+@requires("ai.breaker.resume")
+def ai_resume():
+    from app.DocAI import guard
+    row = guard.resume(current_user(), _body().get("reason"))
+    return ok(row.to_dict(), "AI document reading resumed.")

@@ -148,7 +148,8 @@ class ExtractionCall(Base, db.Model):
     output_tokens = Column(Integer, nullable=False, default=0)
     cache_read_tokens = Column(Integer, nullable=False, default=0)
     cache_write_tokens = Column(Integer, nullable=False, default=0)
-    cost_usd = Column(Numeric(12, 6), nullable=True)  # NULL when the model has no price in ai.price_table
+    cost_usd = Column(Numeric(12, 6), nullable=True)  # ACTUAL, from the token usage returned (NULL: no price)
+    estimated_cost_usd = Column(Numeric(12, 6), nullable=True)  # the estimate the budget check used before the call
     latency_ms = Column(Integer, nullable=True)
     stop_reason = Column(String(30), nullable=True)
     outcome = Column(String(16), nullable=False)
@@ -167,7 +168,9 @@ class ExtractionCall(Base, db.Model):
             "model_requested": self.model_requested, "model_returned": self.model_returned,
             "request_id": self.request_id, "input_tokens": self.input_tokens, "output_tokens": self.output_tokens,
             "cache_read_tokens": self.cache_read_tokens, "cache_write_tokens": self.cache_write_tokens,
-            "cost_usd": None if self.cost_usd is None else str(self.cost_usd), "latency_ms": self.latency_ms,
+            "cost_usd": None if self.cost_usd is None else str(self.cost_usd),
+            "estimated_cost_usd": None if self.estimated_cost_usd is None else str(self.estimated_cost_usd),
+            "latency_ms": self.latency_ms,
             "stop_reason": self.stop_reason, "outcome": self.outcome, "error": self.error,
             "raw_stored": self.raw_ciphertext is not None, "started_at": iso(self.started_at),
             "finished_at": iso(self.finished_at),
@@ -293,3 +296,58 @@ class StatementMetricInput(db.Model):
     metric_id = Column(Integer, ForeignKey("ai_statement_metrics.id", ondelete="RESTRICT"), primary_key=True)
     transaction_id = Column(Integer, ForeignKey("ai_statement_transactions.id", ondelete="RESTRICT"),
                             primary_key=True)
+
+
+REFUSAL_KINDS = ("disabled", "paused", "pricing", "monthly", "per_application", "per_run")
+REFUSAL_LABELS = {"disabled": "AI switched off", "paused": "AI paused (circuit breaker)",
+                  "pricing": "No price for the model", "monthly": "Monthly budget",
+                  "per_application": "Per-application budget", "per_run": "Per-reading budget"}
+
+
+class AIServiceState(db.Model):
+    """One row: whether AI calls may run. The circuit breaker pauses; only an admin resumes (audited)."""
+
+    __tablename__ = "ai_service_state"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_ai_service_state_single_row"),
+                      CheckConstraint("status IN ('running', 'paused')", name="ck_ai_service_state_status"),
+                      CheckConstraint("status = 'running' OR paused_reason IS NOT NULL", name="ck_ai_service_state_reason"))
+
+    id = Column(Integer, primary_key=True)
+    status = Column(String(10), nullable=False, default="running")
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+    paused_reason = Column(Text, nullable=True)
+    resumed_at = Column(DateTime(timezone=True), nullable=True)
+    resumed_by = Column(String(120), nullable=True)
+    resume_reason = Column(Text, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"status": self.status, "paused_at": iso(self.paused_at), "paused_reason": self.paused_reason,
+                "resumed_at": iso(self.resumed_at), "resumed_by": self.resumed_by,
+                "resume_reason": self.resume_reason}
+
+
+class AIBudgetRefusal(Base, db.Model):
+    """An API call that was NOT made because a budget, the breaker or the kill switch stopped it."""
+
+    __tablename__ = "ai_budget_refusals"
+    __table_args__ = (CheckConstraint(_in("kind", REFUSAL_KINDS), name="ck_ai_budget_refusals_kind"),
+                      Index("ix_ai_budget_refusals_at", "refused_at"))
+
+    id = Column(Integer, primary_key=True)
+    extraction_id = Column(Integer, ForeignKey("ai_extractions.id", ondelete="RESTRICT"), nullable=False)
+    application_id = Column(Integer, ForeignKey("loan_applications.id", ondelete="RESTRICT"), nullable=True)
+    page_number = Column(Integer, nullable=True)
+    kind = Column(String(16), nullable=False)
+    limit_usd = Column(Numeric(12, 6), nullable=True)
+    spent_usd = Column(Numeric(12, 6), nullable=True)
+    estimate_usd = Column(Numeric(12, 6), nullable=True)
+    message = Column(Text, nullable=False)
+    refused_at = Column(DateTime(timezone=True), nullable=False)
+
+    def to_dict(self) -> dict:
+        def s(v):
+            return None if v is None else str(v)
+        return {"id": self.id, "extraction_id": self.extraction_id, "application_id": self.application_id,
+                "page_number": self.page_number, "kind": self.kind, "label": REFUSAL_LABELS[self.kind],
+                "limit_usd": s(self.limit_usd), "spent_usd": s(self.spent_usd), "estimate_usd": s(self.estimate_usd),
+                "message": self.message, "refused_at": iso(self.refused_at)}

@@ -39,6 +39,7 @@ _DATED_MODULES = (
     "app.DocAI.validators",
     "app.Applications.service",
     "app.Applications.screening",
+    "app.DocAI.guard",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
@@ -46,7 +47,7 @@ _DATED_MODULES = (
 REFERENCE_TABLES = (
     "branches",
     "departments", "permissions", "roles", "role_permissions", "transaction_limits", "sod_conflicts",
-    "approval_policies", "setting_versions", "periodic_tasks",
+    "approval_policies", "setting_versions", "periodic_tasks", "ai_service_state",
 )
 
 

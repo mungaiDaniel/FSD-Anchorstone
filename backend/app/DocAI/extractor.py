@@ -24,12 +24,13 @@ import logging
 import random
 import time
 import uuid
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from flask import current_app
 
 from app.database.database import db
-from app.DocAI import preprocess, schema_registry, types, validators
+from app.DocAI import guard, preprocess, schema_registry, types, validators
+from app.DocAI.pricing import cost_usd
 from app.DocAI.client import AIServiceError, ClaudeClient
 from app.DocAI.model import (
     EXTRACTION_COMPLETED,
@@ -54,7 +55,6 @@ logger = logging.getLogger(__name__)
 PROCESSOR = "ai-worker"
 BACKOFF_BASE_SECONDS = 2.0
 MAX_RETRY_AFTER_SECONDS = 60.0
-MICRO_USD = Decimal("0.000001")
 sleep = time.sleep  # tests replace it
 _client_factory = None
 
@@ -79,18 +79,6 @@ def _client() -> ClaudeClient:
     return ClaudeClient(key, float(current_app.config.get("AI_REQUEST_TIMEOUT_S") or 300))
 
 
-def cost_usd(model: str | None, input_tokens: int, output_tokens: int, cache_read: int = 0,
-             cache_write: int = 0) -> Decimal | None:
-    """Estimated cost from ai.price_table (cache writes at 1.25×, reads at 0.1× the input price)."""
-    prices = business.get("ai.price_table").get(model or "")
-    if not prices:
-        return None
-    p_in, p_out = Decimal(prices["input"]), Decimal(prices["output"])
-    total = (input_tokens * p_in + output_tokens * p_out + cache_write * p_in * Decimal("1.25")
-             + cache_read * p_in * Decimal("0.1")) / Decimal(1_000_000)
-    return total.quantize(MICRO_USD, rounding=ROUND_HALF_UP)
-
-
 def _backoff(attempt: int, retry_after: float | None) -> float:
     wait = BACKOFF_BASE_SECONDS * 2 ** (attempt - 1) + random.uniform(0, 1)
     if retry_after:
@@ -99,12 +87,14 @@ def _backoff(attempt: int, retry_after: float | None) -> float:
 
 
 def _record(ex: Extraction, page: int | None, purpose: str, attempt: int, started, *, outcome: str,
-            result=None, error: str | None = None, request_id: str | None = None) -> None:
-    """One row per API call, committed at once: the spend is real even if the job dies later."""
+            result=None, error: str | None = None, request_id: str | None = None,
+            estimate: Decimal | None = None) -> None:
+    """One row per API call, committed at once: the spend is real even if the job dies later.
+    cost_usd is the ACTUAL cost from the returned token usage; the pre-call estimate is kept beside it."""
     call = ExtractionCall(id=uuid.uuid4(), extraction_id=ex.id, page_number=page, purpose=purpose, attempt=attempt,
                           model_requested=ex.model_requested, outcome=outcome, error=error, request_id=request_id,
                           started_at=started, finished_at=utcnow(), input_tokens=0, output_tokens=0,
-                          cache_read_tokens=0, cache_write_tokens=0)
+                          cache_read_tokens=0, cache_write_tokens=0, estimated_cost_usd=estimate)
     if result is not None:
         call.model_returned = result.model
         call.request_id = result.request_id
@@ -127,6 +117,7 @@ def _record(ex: Extraction, page: int | None, purpose: str, attempt: int, starte
         ex.cost_usd = Decimal(ex.cost_usd or 0) + (call.cost_usd or 0)
     db.session.add(call)
     db.session.commit()
+    guard.after_call(outcome)
 
 
 def _parse(text: str | None, schema: dict) -> tuple[dict | None, list[str]]:
@@ -141,19 +132,24 @@ def _parse(text: str | None, schema: dict) -> tuple[dict | None, list[str]]:
 
 def ask(ex: Extraction, client: ClaudeClient, system: str, content: list, schema: dict, api_schema: dict,
         page: int | None = None) -> dict:
-    """One model answer that passes the schema, or CallFailed with the reason staff will see."""
+    """One model answer that passes the schema, or CallFailed with the reason staff will see.
+    Every call (retries and repairs too) first passes the kill switch, breaker and budgets (guard.py)."""
     max_attempts = int(business.get("ai.max_attempts"))
     messages = [{"role": "user", "content": content}]
     purpose, attempt = "extract", 0
     while True:
         attempt += 1
+        try:
+            estimate = guard.check_before_call(ex, 1 if page is not None else (ex.page_count or 1), page)
+        except guard.Refused as e:
+            raise CallFailed(str(e))
         started = utcnow()
         try:
             result = client.read(model=ex.model_requested, effort=ex.effort, system=system, messages=messages,
                                  schema=api_schema)
         except AIServiceError as e:
             _record(ex, page, purpose, attempt, started, outcome="retryable_error" if e.retryable else
-                    "permanent_error", error=str(e), request_id=e.request_id)
+                    "permanent_error", error=str(e), request_id=e.request_id, estimate=estimate)
             if not e.retryable:
                 raise CallFailed(f"The AI service refused the request ({e}). Capture the details by hand, or "
                                  "retry after it is fixed.")
@@ -164,16 +160,16 @@ def ask(ex: Extraction, client: ClaudeClient, system: str, content: list, schema
             continue
         if result.stop_reason == "refusal":
             _record(ex, page, purpose, attempt, started, outcome="refusal", result=result,
-                    error="The model declined to answer.")
+                    error="The model declined to answer.", estimate=estimate)
             raise CallFailed("The AI declined to read this document. Capture the details by hand.")
         obj, errors = _parse(result.text, schema)
         if result.stop_reason == "max_tokens":
             errors = ["The answer was cut off (too long)."] + errors
         if not errors:
-            _record(ex, page, purpose, attempt, started, outcome="ok", result=result)
+            _record(ex, page, purpose, attempt, started, outcome="ok", result=result, estimate=estimate)
             return obj
         _record(ex, page, purpose, attempt, started, outcome="invalid_output", result=result,
-                error="; ".join(errors)[:2000])
+                error="; ".join(errors)[:2000], estimate=estimate)
         if purpose == "repair" or result.stop_reason == "max_tokens":
             raise CallFailed("The AI's answer didn't match the expected format"
                              + (" (it was too long)" if result.stop_reason == "max_tokens" else ", twice")

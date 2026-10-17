@@ -1060,6 +1060,7 @@ export interface AiUsageMonth {
   input_tokens: number;
   output_tokens: number;
   cost_usd: string;
+  refusals: AiRefusal[];
   by_type: { document_type: string; label: string; model: string; calls: number; ok_calls: number; readings: number;
     input_tokens: number; output_tokens: number; cost_usd: string; cost_per_reading_usd: string | null }[];
 }
@@ -1106,4 +1107,32 @@ export interface DecisionLog {
   runs: ScreeningRunResult[];
   decisions: CreditDecision[];
   audit: { action: string; description: string | null; user: string | null; at: string }[];
+}
+
+export interface AiRefusal {
+  id: number;
+  extraction_id: number;
+  application_id: number | null;
+  page_number: number | null;
+  kind: "disabled" | "paused" | "pricing" | "monthly" | "per_application" | "per_run";
+  label: string;
+  limit_usd: string | null;
+  spent_usd: string | null;
+  estimate_usd: string | null;
+  message: string;
+  refused_at: string;
+}
+
+export interface AiStatus {
+  status: "running" | "paused";
+  paused_at: string | null;
+  paused_reason: string | null;
+  resumed_at: string | null;
+  resumed_by: string | null;
+  resume_reason: string | null;
+  enabled: boolean;
+  budgets: { monthly_usd: string; per_application_usd: string; per_run_usd: string };
+  spent_this_month_usd: string;
+  breaker: { consecutive_failures: number; window_failures: number; window_minutes: number };
+  recent_refusals: AiRefusal[];
 }

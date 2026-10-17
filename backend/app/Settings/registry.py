@@ -137,6 +137,17 @@ def ratio(places: int = 2):
     return check
 
 
+def usd(value):
+    """A US-dollar amount, zero or more, at most 2 decimal places."""
+    try:
+        number = Decimal(str(value).strip())
+    except (InvalidOperation, AttributeError):
+        raise ValidationError("must be an amount in US dollars.")
+    if not number.is_finite() or number < 0 or number != number.quantize(Decimal("0.01")):
+        raise ValidationError("must be zero or more, with at most 2 decimal places.")
+    return f"{number:.2f}"
+
+
 def keyword_list(max_items: int = 200, max_len: int = 60):
     """Words or phrases matched against statement descriptions (upper-cased, de-duplicated)."""
     def check(value):
@@ -321,6 +332,23 @@ DEFINITIONS = [
     SettingDefinition("ai.price_table", "json", AI_PRICES, price_table, IMMEDIATE, "ai",
                       "Price per million input and output tokens (USD) for each model, used to estimate the cost "
                       "of every AI call.", in_use=True, wa_ref="05 §11", questionnaire_ref="H6"),
+    SettingDefinition("ai.budget.monthly_usd", "decimal", "20.00", usd, IMMEDIATE, "ai",
+                      "Most the AI may cost in a Nairobi calendar month (USD). A call that would pass it is refused "
+                      "and recorded.", in_use=True, wa_ref="05 §11", questionnaire_ref="H6"),
+    SettingDefinition("ai.budget.per_application_usd", "decimal", "2.00", usd, IMMEDIATE, "ai",
+                      "Most the AI may cost for one application's documents (USD).", in_use=True, wa_ref="05 §11",
+                      questionnaire_ref="H6"),
+    SettingDefinition("ai.budget.per_run_usd", "decimal", "3.00", usd, IMMEDIATE, "ai",
+                      "Most one reading of one document may cost (USD), whatever it belongs to: a cap on runaway "
+                      "multi-page statements and on test runs.", in_use=True, wa_ref="05 §11", questionnaire_ref="H6"),
+    SettingDefinition("ai.breaker.consecutive_failures", "int", 5, int_between(2, 100), IMMEDIATE, "ai",
+                      "Pause AI reading after this many failed calls in a row (admins are alerted; an admin resumes).",
+                      in_use=True, wa_ref="05 §11"),
+    SettingDefinition("ai.breaker.window_failures", "int", 10, int_between(2, 1000), IMMEDIATE, "ai",
+                      "Pause AI reading when more calls than this fail within the window below.", in_use=True,
+                      wa_ref="05 §11"),
+    SettingDefinition("ai.breaker.window_minutes", "int", 10, int_between(1, 1440), IMMEDIATE, "ai",
+                      "The window (minutes) for counting failed calls.", in_use=True, wa_ref="05 §11"),
     SettingDefinition("ai.statements.lender_keywords", "list", sorted(LENDER_KEYWORDS), keyword_list(), IMMEDIATE,
                       "ai", "Statement descriptions containing any of these words count as repayments to other "
                       "lenders.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),
