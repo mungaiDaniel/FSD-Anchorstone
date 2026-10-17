@@ -80,6 +80,13 @@ def screening_rescreen(args: dict):
     return rescreen_all("scheduler")
 
 
+@task("screening.un_sanctions_import", queue="default", timeout_seconds=1800)
+def screening_un_sanctions_import(args: dict):
+    """Refresh the UN Security Council sanctions list (FSD KYC-06), when the import is switched on."""
+    from app.Parties.sanctions_un import scheduled_import
+    return scheduled_import("scheduler")
+
+
 @task("test.noop", queue="default")
 def noop(args: dict):
     """Does nothing; used to check a worker is alive (and by tests)."""

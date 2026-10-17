@@ -14,7 +14,7 @@ from sqlalchemy import text
 from app.database.database import db
 from app.Investors.model import Investor
 from app.Parties.model import Account, Party, PartyBankAccount, PartyContact, PartyIdentifier, PartyPerson, PartyRole
-from golden.capture import DATA_FILE, OUTPUTS_FILE, PRE_2B_REVISION, capture, load_data, read
+from golden.capture import DATA_FILE, OUTPUTS_FILE, PRE_2B_REVISION, capture, comparable, load_data, read
 
 PARTIES_REVISION = "b8c9d0e1f2a3"  # parties exist, investors not yet moved
 
@@ -47,7 +47,7 @@ def test_migration_golden_outputs_identical(migrated_demo_book, client):
     golden = read(OUTPUTS_FILE)
     now = capture(client, _sign)
     assert set(now) == set(golden)
-    different = [k for k in sorted(golden) if now[k] != golden[k]]
+    different = [k for k in sorted(golden) if comparable(k, now[k]) != comparable(k, golden[k])]
     assert not different, f"{len(different)} outputs changed, first: {different[0]}\n" \
                           f"before: {str(golden[different[0]])[:600]}\nafter:  {str(now[different[0]])[:600]}"
     # The checks above cover the 7 Excel reports, the statements and the investor screens.

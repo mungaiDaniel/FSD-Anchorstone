@@ -414,20 +414,54 @@ PEP_RELATIONSHIPS = ("self", "family_member", "close_associate")
 PEP_STATUSES = ("pending", "approved", "cleared")
 
 
+class SanctionsListImport(Base, db.Model):
+    """One applied import of a published sanctions list (app/Parties/sanctions_un.py). The list's own
+    generation date is its version; a re-run of the same file changes nothing and records nothing."""
+    __tablename__ = "sanctions_list_imports"
+    __table_args__ = (
+        CheckConstraint("list IN ('sanctions_un')", name="ck_sanctions_list_imports_list"),
+        UniqueConstraint("list", "content_sha256", name="uq_sanctions_list_imports_content"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    list = Column(String(20), nullable=False)
+    source = Column(String(500), nullable=False)
+    list_generated_at = Column(DateTime(timezone=True), nullable=False)
+    content_sha256 = Column(String(64), nullable=False)
+    entries_in_list = Column(Integer, nullable=False)
+    added = Column(Integer, nullable=False)
+    updated = Column(Integer, nullable=False)
+    removed = Column(Integer, nullable=False)
+    imported_by = Column(String(120), nullable=False)
+    imported_at = Column(DateTime(timezone=True), nullable=False)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "list": self.list, "source": self.source,
+                "list_generated_at": iso(self.list_generated_at), "content_sha256": self.content_sha256,
+                "entries_in_list": self.entries_in_list, "added": self.added, "updated": self.updated,
+                "removed": self.removed, "imported_by": self.imported_by, "imported_at": iso(self.imported_at)}
+
+
 class WatchlistEntry(Base, db.Model):
-    """A name (and optional identifiers) on Anchorstone's internal blacklist or PEP list."""
+    """A name (and optional identifiers) on Anchorstone's internal blacklist or PEP list, or on the
+    UN sanctions list. Entries from an import carry the list's reference number (external_ref) and
+    its aliases; an entry the list drops is marked removed, never deleted."""
     __tablename__ = "watchlist_entries"
     __table_args__ = (
         CheckConstraint(_in("list", WATCHLISTS), name="ck_watchlist_entries_list"),
         CheckConstraint("status IN ('active', 'removed')", name="ck_watchlist_entries_status"),
         Index("ix_watchlist_entries_name", "name_normalised"),
+        # One active entry per published reference; a delisted-then-relisted person gets a new row.
+        Index("uq_watchlist_entries_external_ref", "list", "external_ref", unique=True,
+              postgresql_where=text("status = 'active' AND external_ref IS NOT NULL")),
     )
 
     id = Column(Integer, primary_key=True)
     list = Column(String(20), nullable=False)
     full_name = Column(String(200), nullable=False)
     name_normalised = Column(String(200), nullable=False)
-    identifiers = Column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
+    # default=lambda: [], not default=list: the `list` column above shadows the builtin in this class body.
+    identifiers = Column(JSONB, nullable=False, default=lambda: [], server_default=text("'[]'::jsonb"))
     reason = Column(Text, nullable=False)
     source = Column(String(200), nullable=True)
     status = Column(String(10), nullable=False, default="active", server_default="active")
@@ -435,11 +469,17 @@ class WatchlistEntry(Base, db.Model):
     added_at = Column(DateTime(timezone=True), nullable=False)
     removed_by = Column(String(120), nullable=True)
     removed_at = Column(DateTime(timezone=True), nullable=True)
+    external_ref = Column(String(40), nullable=True)  # the list's reference number, e.g. UN "QDi.001"
+    aliases = Column(JSONB, nullable=False, default=lambda: [], server_default=text("'[]'::jsonb"))
+    details = Column(JSONB, nullable=True)  # what the list says beyond names: list type, listed on, DOB …
+    import_id = Column(Integer, ForeignKey("sanctions_list_imports.id", ondelete="RESTRICT"), nullable=True)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "list": self.list, "full_name": self.full_name, "identifiers": self.identifiers,
                 "reason": self.reason, "source": self.source, "status": self.status, "added_by": self.added_by,
-                "added_at": iso(self.added_at), "removed_by": self.removed_by, "removed_at": iso(self.removed_at)}
+                "added_at": iso(self.added_at), "removed_by": self.removed_by, "removed_at": iso(self.removed_at),
+                "external_ref": self.external_ref, "aliases": [a.get("name") for a in self.aliases or []],
+                "details": self.details, "import_id": self.import_id}
 
 
 class ScreeningResult(Base, db.Model):

@@ -42,6 +42,7 @@ def build_interest_statement_data(payout_id: int) -> dict:
     )
 
     return {
+        "issued_on": today_eat(),
         "investor": {
             "full_name": investor.full_name,
             "client_code": investor.client_code,

@@ -46,6 +46,15 @@ REPORT_PARAMS = {
     "email-log": {"from": "2026-01-01", "to": "2026-12-31"},
 }
 _GENERATED_PDF = re.compile(r"Generated \d{1,2} \w+ \d{4} \d{2}:\d{2} UTC")
+# An interest statement is dated the day it is printed (Nairobi "today"), which the golden file can't fix.
+_INTEREST_STATEMENT_DATE = re.compile(r"Statement date \d{2} \w{3} \d{4}")
+
+
+def comparable(key: str, value):
+    """A captured output with the parts that depend on the day it was captured masked."""
+    if key.startswith("pdf:interest-statement/") and isinstance(value, str):
+        return _INTEREST_STATEMENT_DATE.sub("Statement date <today>", value)
+    return value
 
 
 # ── Data fixture ───────────────────────────────────────────────────────────

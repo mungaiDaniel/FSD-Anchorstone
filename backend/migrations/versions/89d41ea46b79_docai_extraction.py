@@ -12,7 +12,7 @@ like document.view.sensitive), the data access action 'process' (a background jo
 reading a document), and version 1 of the new ai.* settings.
 
 Revision ID: 89d41ea46b79
-Revises: b4c5d6e7f8a9
+Revises: d6e7f8a9b0c1
 Create Date: 2026-10-17 12:51:30.073955
 
 """
@@ -25,7 +25,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '89d41ea46b79'
-down_revision = 'b4c5d6e7f8a9'
+down_revision = 'd6e7f8a9b0c1'
 branch_labels = None
 depends_on = None
 

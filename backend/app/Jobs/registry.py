@@ -72,6 +72,10 @@ PERIODIC = [
     Periodic("change_requests.expire", "change_requests.expire", "interval", lambda app: {"minutes": 60}),
     # Daily at 02:00 Nairobi (23:00 UTC): existing clients against the watchlists.
     Periodic("screening.rescreen", "screening.rescreen", "daily", lambda app: {"hour": 23, "minute": 0}),
+    # Daily at 01:00 Nairobi (22:00 UTC), before the re-screen: the UN sanctions list. The job does nothing
+    # while screening.un_sanctions.import_enabled is off.
+    Periodic("screening.un_sanctions_import", "screening.un_sanctions_import", "daily",
+             lambda app: {"hour": 22, "minute": 0}),
 ]
 PERIODIC_BY_NAME = {p.name: p for p in PERIODIC}
 
