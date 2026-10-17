@@ -101,6 +101,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.Approvals.route import approvals_v1
     from app.Audit.route import audit_v1
     from app.Backup.route import backup_v1
+    from app.DocAI.route import docai_v1
     from app.Documents.route import documents_v1
     from app.Emails.route import emails_v1
     from app.Interest.route import interest_v1
@@ -112,7 +113,8 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.Transactions.route import transactions_v1
 
     for bp in (user_v1, investors_v1, transactions_v1, interest_v1, emails_v1, stats_v1,
-               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1, parties_v1):
+               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1, parties_v1,
+               docai_v1):
         app.register_blueprint(bp)
     load_handlers()
     from app.Jobs.registry import load_tasks

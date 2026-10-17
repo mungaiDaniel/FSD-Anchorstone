@@ -4,6 +4,23 @@ This is new; it isn't in the FSD.
 - **What it does:** extract data from clients' scanned documents with the Claude API, have staff confirm it, compute metrics in code, and run admin-configured rules that sort loan applicants into **Shortlisted / Needs review / Not qualified** *before* credit analysis.
 - **What it doesn't do:** the AI never makes a credit decision, never rejects anyone, and never does the arithmetic that decisions depend on.
 
+> **Built so far: phase 3a, AI document extraction** (`backend/app/DocAI/`). It covers §2 (all types plus the
+> CRB report), §3, §5, §6.1 (per-page and running-balance checks, page continuity) and §10, a first set of §6.2
+> statement metrics, and §11 retries and cost per call. It differs from this design in four ways:
+> - The model and the price table are **business settings** (`ai.model_extract`, which needs two approvers, and
+>   `ai.price_table`), not the `AI_MODEL_*` / `AI_PRICE_TABLE` environment variables of ADR-05-2. Only the key
+>   (`ANTHROPIC_API_KEY`) and `AI_REQUEST_TIMEOUT_S` are environment.
+> - The SDK wrapper is `client.py` and the orchestration is `extractor.py`. There's **no separate classification
+>   call**: every answer carries `detected_document_type` and `readable`.
+> - Statement transaction rows carry one confidence and the page (not a full envelope per cell). Statement
+>   metrics are computed from the extraction (before human review) and **only when every page balances**.
+> - Not built yet (3b and later): deterministic parsers (ADR-05-4), image quality pre-checks other than
+>   HEIC / locked / damaged files, the review screen and maker-checker confirmation (§8), cross-document checks,
+>   rules and screening (§7), budgets and the circuit breaker (§11), and the evaluation harness (§12).
+>
+> Schemas are built once from `types.py` by `scripts/build_docai_schemas.py` and never edited. Prompts are
+> hand-written files. Both are hashed onto every extraction.
+
 ---
 
 ## Architectural decisions

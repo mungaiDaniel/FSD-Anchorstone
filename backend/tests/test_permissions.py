@@ -105,6 +105,10 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/parties/<int:party_id>/merge"), ("POST", "/api/v1/parties/<int:party_id>/transfer"),
     ("GET", "/api/v1/branches"),
     ("GET", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist/<int:entry_id>/remove"),
+    # Phase 3a: AI document extraction (ai.extract.run / ai.extract.view: admin and super_admin)
+    ("POST", "/api/v1/parties/<int:party_id>/documents/<uuid:document_id>/extractions"),
+    ("GET", "/api/v1/parties/<int:party_id>/extractions"), ("GET", "/api/v1/extractions/<int:extraction_id>"),
+    ("POST", "/api/v1/extractions/<int:extraction_id>/retry"),
 }
 
 

@@ -482,3 +482,49 @@ def test_the_api_key_never_appears_in_errors_records_or_logs(ai, app, staff, use
     assert key not in dumped and key not in caplog.text
     rows = db.session.execute(text("SELECT description, new_value::text FROM audit_logs")).all()
     assert all(key not in (r[0] or "") + (r[1] or "") for r in rows)
+
+
+# ── API ──
+
+
+def test_staff_without_the_ai_permissions_are_refused(ai, staff):
+    p, doc = client_with(staff)
+    assert staff.post(f"/api/v1/parties/{p['id']}/documents/{doc['id']}/extractions").status_code == 403
+    assert staff.get(f"/api/v1/parties/{p['id']}/extractions").status_code == 403
+    assert staff.get("/api/v1/extractions/1").status_code == 403
+    assert staff.post("/api/v1/extractions/1/retry").status_code == 403
+    assert Extraction.query.count() == 0
+
+
+def test_request_read_and_retry_through_the_api(ai, app, staff, admin1, users):
+    p, doc = client_with(staff)
+    ai.queue(response("national_id_clean"))
+    res = admin1.post(f"/api/v1/parties/{p['id']}/documents/{doc['id']}/extractions")
+    assert res.status_code == 202, res.get_json()
+    queued = res.get_json()["data"]
+    assert (queued["status"], queued["status_label"], queued["model_requested"]) == \
+        ("queued", "Queued", "claude-opus-5-5")
+    run_jobs()
+    listed = admin1.get(f"/api/v1/parties/{p['id']}/extractions").get_json()["data"]
+    assert [(e["id"], e["status"], e["label"]) for e in listed] == [(queued["id"], "completed", "National ID card")]
+    res = admin1.get(f"/api/v1/extractions/{queued['id']}")
+    body = res.get_json()["data"]
+    assert {f["path"]: f["value"] for f in body["fields"]}["id_number"] == "00000001"
+    [call] = body["calls"]
+    assert call["raw_stored"] is True and call["cost_usd"] == "0.031400"
+    assert "raw_ciphertext" not in res.get_data(as_text=True) and app.config["ANTHROPIC_API_KEY"] not in \
+        res.get_data(as_text=True)
+    views = DataAccessLog.query.filter_by(action="view", entity_type="ai_extraction").all()
+    assert {v.user_email for v in views} == {"admin1@anchorstone.test"} and len(views) == 2
+
+    ai.queue(response("national_id_clean"))
+    res = admin1.post(f"/api/v1/extractions/{queued['id']}/retry")
+    assert res.status_code == 202 and res.get_json()["data"]["supersedes_id"] == queued["id"]
+
+
+def test_api_refusals_carry_a_clear_message(ai, staff, admin1):
+    p, doc = client_with(staff, consented=False)
+    res = admin1.post(f"/api/v1/parties/{p['id']}/documents/{doc['id']}/extractions")
+    assert res.status_code == 403 and "consented to automatic document reading" in res.get_json()["message"]
+    assert admin1.post(f"/api/v1/parties/{p['id']}/documents/{uuid.uuid4()}/extractions").status_code == 404
+    assert admin1.get("/api/v1/extractions/999").status_code == 404
