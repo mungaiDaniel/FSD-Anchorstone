@@ -8,6 +8,7 @@ Changes go through the gl.account.create / gl.account.change change requests.
 """
 from sqlalchemy import (BigInteger, Boolean, CheckConstraint, Column, Date, DateTime, FetchedValue, ForeignKey,
                         ForeignKeyConstraint, Index, Integer, Numeric, String, Text, UniqueConstraint)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.database.database import db
@@ -154,6 +155,7 @@ class JournalEntry(Base, db.Model):
     approved_by = Column(String(120), nullable=True)
     posted_at = Column(DateTime(timezone=True), nullable=False)
     posted_txid = Column(BigInteger, nullable=False, server_default=FetchedValue())
+    posting_rule_id = Column(Integer, ForeignKey("gl_posting_rules.id", ondelete="RESTRICT"), nullable=True)
 
     lines = relationship("JournalLine", primaryjoin="JournalEntry.id == foreign(JournalLine.entry_id)",
                          order_by="JournalLine.line_no", lazy="selectin", viewonly=True)
@@ -164,7 +166,8 @@ class JournalEntry(Base, db.Model):
                "branch_id": self.branch_id, "currency": self.currency, "description": self.description,
                "event_type": self.event_type, "source_type": self.source_type, "source_id": self.source_id,
                "status": self.status, "reversal_of": self.reversal_of, "reason": self.reason,
-               "created_by": self.created_by, "approved_by": self.approved_by, "posted_at": iso(self.posted_at)}
+               "created_by": self.created_by, "approved_by": self.approved_by, "posted_at": iso(self.posted_at),
+               "posting_rule_id": self.posting_rule_id}
         if with_lines:
             out["lines"] = [line.to_dict() for line in self.lines]
         return out
@@ -198,3 +201,104 @@ class JournalLine(Base, db.Model):
                 "debit": as_str(self.debit), "credit": as_str(self.credit), "branch_id": self.branch_id,
                 "account_id": self.account_id, "party_id": self.party_id, "currency": self.currency,
                 "description": self.description}
+
+
+# ── Posting engine ──
+#
+# A posting rule turns a business event into journal lines. Rules are versioned data: each version
+# is a new, insert-only row with its lines (migration f3a3b4c5d6e7), made through the
+# gl.posting_rule.change change request, and the engine uses the version in force on the event's
+# value date. Each journal records the version it was built from (journal_entries.posting_rule_id).
+
+EVENT_TYPE_PATTERN = r"^[A-Z][A-Z0-9_]{2,59}$"
+FIELD_PATTERN = r"^[a-z][a-z0-9_]{0,39}$"
+
+
+class PostingRule(Base, db.Model):
+    __tablename__ = "gl_posting_rules"
+    __table_args__ = (
+        UniqueConstraint("event_type", "version_no", name="uq_gl_posting_rules_version"),
+        UniqueConstraint("event_type", "effective_from", name="uq_gl_posting_rules_effective"),
+        CheckConstraint(f"event_type ~ '{EVENT_TYPE_PATTERN}'", name="ck_gl_posting_rules_event_type"),
+        CheckConstraint(_in("source", ACCOUNT_SOURCES), name="ck_gl_posting_rules_source"),
+        CheckConstraint("lower(approved_by) <> lower(created_by)", name="ck_gl_posting_rules_maker_not_checker"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    event_type = Column(String(60), nullable=False, index=True)
+    version_no = Column(Integer, nullable=False)
+    effective_from = Column(Date, nullable=False)
+    description = Column(Text, nullable=False)
+    source = Column(String(20), nullable=False)
+    change_request_id = Column(Integer, ForeignKey("change_requests.id", ondelete="RESTRICT"), nullable=True)
+    created_by = Column(String(120), nullable=False)
+    approved_by = Column(String(120), nullable=False)
+    approved_at = Column(DateTime(timezone=True), nullable=False)
+
+    lines = relationship("PostingRuleLine", primaryjoin="PostingRule.id == foreign(PostingRuleLine.rule_id)",
+                         order_by="PostingRuleLine.line_no", lazy="selectin", viewonly=True)
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "event_type": self.event_type, "version_no": self.version_no,
+                "effective_from": iso(self.effective_from), "description": self.description, "source": self.source,
+                "created_by": self.created_by, "approved_by": self.approved_by, "approved_at": iso(self.approved_at),
+                "lines": [line.to_dict() for line in self.lines]}
+
+
+class PostingRuleLine(Base, db.Model):
+    __tablename__ = "gl_posting_rule_lines"
+    __table_args__ = (
+        UniqueConstraint("rule_id", "line_no", name="uq_gl_posting_rule_lines_line"),
+        CheckConstraint(_in("side", SIDES), name="ck_gl_posting_rule_lines_side"),
+        CheckConstraint(f"amount_field ~ '{FIELD_PATTERN}'", name="ck_gl_posting_rule_lines_amount_field"),
+        CheckConstraint(f"account_ref IS NULL OR account_ref ~ '{FIELD_PATTERN}'",
+                        name="ck_gl_posting_rule_lines_account_ref"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    rule_id = Column(Integer, ForeignKey("gl_posting_rules.id", ondelete="RESTRICT"), nullable=False, index=True)
+    line_no = Column(Integer, nullable=False)
+    side = Column(String(6), nullable=False)
+    gl_account_id = Column(Integer, ForeignKey("gl_accounts.id", ondelete="RESTRICT"), nullable=False)
+    amount_field = Column(String(40), nullable=False)      # which amount of the event this line takes
+    account_ref = Column(String(40), nullable=True)        # which reference names the client account (control)
+    description = Column(Text, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {"line_no": self.line_no, "side": self.side, "gl_account_id": self.gl_account_id,
+                "amount_field": self.amount_field, "account_ref": self.account_ref, "description": self.description}
+
+
+class GlEvent(Base, db.Model):
+    """A business event that was posted. (event_type, source_type, source_id, occurrence) is its unique source
+    key, so posting the same event twice is refused. Insert-only."""
+    __tablename__ = "gl_events"
+    __table_args__ = (
+        UniqueConstraint("event_type", "source_type", "source_id", "occurrence", name="uq_gl_events_source_key"),
+        CheckConstraint("occurrence >= 1", name="ck_gl_events_occurrence"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    event_type = Column(String(60), nullable=False)
+    source_type = Column(String(40), nullable=False)
+    source_id = Column(String(64), nullable=False)
+    occurrence = Column(Integer, nullable=False, default=1)
+    value_date = Column(Date, nullable=False)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False)
+    amounts = Column(JSONB, nullable=False)                 # money as strings
+    refs = Column(JSONB, nullable=False)
+    posting_rule_id = Column(Integer, ForeignKey("gl_posting_rules.id", ondelete="RESTRICT"), nullable=False)
+    journal_entry_id = Column(Integer, ForeignKey("journal_entries.id", ondelete="RESTRICT"), nullable=False,
+                              unique=True)
+    created_by = Column(String(120), nullable=False)
+
+    @property
+    def source_key(self) -> str:
+        return f"{self.event_type}:{self.source_type}:{self.source_id}:{self.occurrence}"
+
+    def to_dict(self) -> dict:
+        return {"id": self.id, "event_type": self.event_type, "source_type": self.source_type,
+                "source_id": self.source_id, "occurrence": self.occurrence, "source_key": self.source_key,
+                "value_date": iso(self.value_date), "branch_id": self.branch_id, "amounts": self.amounts,
+                "refs": self.refs, "posting_rule_id": self.posting_rule_id, "journal_entry_id": self.journal_entry_id,
+                "created_by": self.created_by}

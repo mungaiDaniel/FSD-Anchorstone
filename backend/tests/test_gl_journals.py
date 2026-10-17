@@ -88,7 +88,7 @@ def test_python_layer_refuses_bad_entries(lines, message):
 
 
 def test_control_account_lines_carry_the_client_account(make_investor):
-    account_id = Investor.query.get(make_investor()["id"]).account_id
+    account_id = db.session.get(Investor, make_investor()["id"]).account_id
     entry = _post(lines=[{"gl_account_id": _id("1101"), "debit": "500.00"},
                          {"gl_account_id": _id("2100"), "credit": "500.00", "account_id": account_id}])
     db.session.commit()
@@ -269,7 +269,7 @@ def test_database_refuses_a_line_with_both_or_neither_side():
 ])
 def test_database_refuses_lines_on_unusable_accounts(make_investor, code, extra, message):
     if extra.get("account_id") == "own":
-        extra["account_id"] = Investor.query.get(make_investor()["id"]).account_id
+        extra["account_id"] = db.session.get(Investor, make_investor()["id"]).account_id
     e = _raw_entry(_period())
     with pytest.raises(IntegrityError, match=message):
         _raw_line(e, code, debit="10", **extra)

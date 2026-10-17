@@ -40,6 +40,11 @@ def has_postings(account: GlAccount) -> bool:
     return db.session.query(JournalLine.id).filter(JournalLine.gl_account_id == account.id).first() is not None
 
 
+def _rule_accounts() -> set[int]:
+    from app.Ledger.rules import accounts_in_use
+    return accounts_in_use()
+
+
 def children(account: GlAccount) -> list[GlAccount]:
     return GlAccount.query.filter(GlAccount.parent_id == account.id).all()
 
@@ -173,6 +178,9 @@ def validate_change(account: GlAccount, changes) -> dict:
         raise ValidationError("This header has sub-accounts, so it can't take postings.")
     if diff.get("is_active") is False and any(k.is_active for k in kids):
         raise ValidationError("Deactivate the sub-accounts first.")
+    if (diff.get("is_active") is False or diff.get("is_postable") is False) and account.id in _rule_accounts():
+        raise ValidationError("A posting rule in force (or taking effect later) uses this account; "
+                              "change the rule first.")
     if diff.get("is_active") is True and account.parent_id is not None:
         parent = db.session.get(GlAccount, clean["parent_id"])
         if parent is not None and not parent.is_active:

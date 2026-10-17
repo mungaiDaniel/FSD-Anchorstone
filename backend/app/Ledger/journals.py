@@ -85,7 +85,8 @@ def normalise_lines(lines, entry_branch_id: int) -> list[dict]:
 
 def write_entry(*, value_date: date, branch_id: int, description: str, lines: list[dict], created_by: str,
                 event_type: str | None = None, source: tuple[str, str] | None = None,
-                reversal_of: int | None = None, reason: str | None = None) -> JournalEntry:
+                reversal_of: int | None = None, reason: str | None = None,
+                posting_rule_id: int | None = None) -> JournalEntry:
     if not isinstance(value_date, date):
         raise ValidationError("value_date is required.")
     if not (description or "").strip():
@@ -98,6 +99,7 @@ def write_entry(*, value_date: date, branch_id: int, description: str, lines: li
         description=description.strip(), event_type=event_type,
         source_type=source[0] if source else None, source_id=str(source[1]) if source else None,
         reversal_of=reversal_of, reason=reason, created_by=created_by, posted_at=utcnow(),
+        posting_rule_id=posting_rule_id,
     )
     db.session.add(entry)
     db.session.flush()
@@ -144,4 +146,4 @@ def reverse(entry_id: int, reason: str, actor_email: str) -> JournalEntry:
                        description=f"Reversal of {original.journal_no}: {original.description}", lines=lines,
                        created_by=actor_email, event_type=original.event_type,
                        source=(original.source_type, original.source_id) if original.source_type else None,
-                       reversal_of=original.id, reason=reason)
+                       reversal_of=original.id, reason=reason, posting_rule_id=original.posting_rule_id)

@@ -108,6 +108,7 @@ NEW_SINCE_PHASE_1 = {
     # Phase 4: general ledger
     ("GET", "/api/v1/gl/accounts"), ("GET", "/api/v1/gl/accounts/<int:account_id>"),
     ("GET", "/api/v1/gl/periods"), ("GET", "/api/v1/gl/journals/<int:entry_id>"),
+    ("GET", "/api/v1/gl/posting-rules"), ("GET", "/api/v1/gl/posting-rules/<int:rule_id>"),
 }
 
 

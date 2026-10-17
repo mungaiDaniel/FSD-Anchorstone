@@ -43,7 +43,8 @@ def _import_models():
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
     from app.Investors.model import Investor  # noqa: F401
     from app.Jobs.model import Job, PeriodicTask  # noqa: F401
-    from app.Ledger.model import GlAccount, GlJournalSequence, GlPeriod, JournalEntry, JournalLine  # noqa: F401
+    from app.Ledger.model import (  # noqa: F401
+        GlAccount, GlEvent, GlJournalSequence, GlPeriod, JournalEntry, JournalLine, PostingRule, PostingRuleLine)
     from app.Parties.model import (  # noqa: F401
         Account, Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
         PartyConsent, PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, SanctionsListImport, ScreeningResult,

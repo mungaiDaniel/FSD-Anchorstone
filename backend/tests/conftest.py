@@ -38,6 +38,8 @@ _DATED_MODULES = (
     "app.Parties.service",
     "app.Ledger.journals",
     "app.Ledger.handlers",
+    "app.Ledger.rules",
+    "app.Ledger.engine",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
@@ -46,7 +48,7 @@ REFERENCE_TABLES = (
     "branches",
     "departments", "permissions", "roles", "role_permissions", "transaction_limits", "sod_conflicts",
     "approval_policies", "setting_versions", "periodic_tasks",
-    "gl_accounts",
+    "gl_accounts", "gl_posting_rules", "gl_posting_rule_lines",
 )
 
 

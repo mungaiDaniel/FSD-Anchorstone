@@ -6,13 +6,16 @@ General-ledger change requests.
 
     gl.period.close      close a month                  one approver (gl.period.close.approve)
     gl.period.reopen     reopen the latest closed month two approvers (gl.period.reopen.approve), reason
+    gl.posting_rule.change  new version of a rule      one approver (gl.posting_rule.approve)
 
 Codes can change freely: journals reference the account id.
 """
+from datetime import date
+
 from app.Approvals.handlers import Handler, register
 from app.database.database import db
-from app.Ledger import accounts, periods
-from app.Ledger.model import PERIOD_CLOSED, PERIOD_OPEN, GlAccount, GlPeriod
+from app.Ledger import accounts, periods, rules
+from app.Ledger.model import PERIOD_CLOSED, PERIOD_OPEN, GlAccount, GlPeriod, PostingRule, PostingRuleLine
 from app.utils.audit_log import create_audit_log
 from app.utils.dates import today_eat, utcnow
 from app.utils.http import ValidationError
@@ -170,3 +173,46 @@ class PeriodReopen(Handler):
                          old_value=old, new_value={"status": PERIOD_OPEN, "reason": request.payload["reason"],
                                                    "reopen_count": period.reopen_count})
         return {"gl_period_id": period.id, "reopen_count": period.reopen_count}
+
+
+@register
+class PostingRuleChange(Handler):
+    """payload = {event_type, effective_from, description, source, lines: [{side, gl_account_id, amount_field,
+    account_ref, description}]}. Adds a new version; earlier versions and their journals are untouched."""
+    request_type = "gl.posting_rule.change"
+    entity_type = "gl_posting_rule"
+    submit_permission = "gl.posting_rule.edit"
+
+    def validate(self, payload):
+        return rules.validate_definition(payload)
+
+    def entity_id(self, payload):
+        return payload["event_type"]
+
+    def base_version(self, payload):
+        latest = rules.latest(payload["event_type"])
+        return str(latest.id) if latest else "none"
+
+    def old_value(self, payload):
+        latest = rules.latest(payload["event_type"])
+        return latest.to_dict() if latest else None
+
+    def describe(self, payload):
+        latest = rules.latest(payload["event_type"])
+        version = latest.version_no + 1 if latest else 1
+        return (f"Posting rule {payload['event_type']} version {version} from {payload['effective_from']} "
+                f"({len(payload['lines'])} lines)")
+
+    def apply(self, request, actor):
+        p = request.payload
+        latest = rules.latest(p["event_type"])
+        rule = PostingRule(event_type=p["event_type"], version_no=latest.version_no + 1 if latest else 1,
+                           effective_from=date.fromisoformat(p["effective_from"]), description=p["description"],
+                           source=p["source"], change_request_id=request.id, created_by=request.maker_email,
+                           approved_by=actor.email, approved_at=utcnow())
+        db.session.add(rule)
+        db.session.flush()
+        for n, line in enumerate(p["lines"], 1):
+            db.session.add(PostingRuleLine(rule_id=rule.id, line_no=n, **line))
+        db.session.flush()
+        return {"posting_rule_id": rule.id, "version_no": rule.version_no}
