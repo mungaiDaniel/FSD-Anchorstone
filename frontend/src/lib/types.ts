@@ -793,3 +793,317 @@ export interface WatchlistEntry {
   removed_at: string | null;
   matched_parties?: number;
 }
+
+// ── AI extraction review and pre-selection (phase 3b) ──
+
+export type ProductCode = "business_loan" | "bridge_loan" | "asset_finance";
+export type CrbStatusValue = "clear" | "listed" | "previously_listed_cleared";
+export type Outcome = "shortlisted" | "needs_review" | "not_qualified";
+export type DecisionValue = "proceed" | "decline" | "more_info";
+export type CheckStatus = "pass" | "fail" | "needs_review" | "missing" | "not_applicable";
+export type RuleResultValue = "pass" | "fail" | "missing" | "not_applicable";
+export type ReviewState = "draft" | "submitted" | "returned" | "approved" | "rejected";
+
+export interface Extraction {
+  id: number;
+  party_id: number;
+  document_id: string;
+  declared_type: string;
+  status: "queued" | "running" | "completed" | "needs_review" | "rescan_needed" | "failed";
+  status_label: string;
+  status_reason: string | null;
+  detected_document_type: string | null;
+  readable: boolean | null;
+  page_count: number | null;
+  warnings: string[];
+  model_requested: string;
+  prompt_version: string;
+  schema_version: string;
+  document_sha256: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+  requested_by: string;
+  requested_at: string;
+  finished_at: string | null;
+}
+
+export interface ApplicationDocument {
+  id: string;
+  document_type: string;
+  label: string;
+  filename: string;
+  content_type: string;
+  status: string;
+  uploaded_at: string;
+  extraction: Extraction | null;
+}
+
+export interface CrbStatus {
+  id: number;
+  status: CrbStatusValue;
+  status_label: string;
+  status_date: string;
+  bureau: string;
+  extraction_id: number | null;
+  source: "entered" | "crb_report";
+  change_request_id: number | null;
+  entered_by: string;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+}
+
+export interface RuleResult {
+  position: number;
+  rule_id: string;
+  description: string;
+  metric: string;
+  value: unknown;
+  comparison: string;
+  threshold: unknown;
+  result: RuleResultValue;
+  outcome_if_failed: Outcome | null;
+  reason: string;
+}
+
+export interface ScreeningRunResult {
+  id: number;
+  application_id: number;
+  outcome: Outcome;
+  outcome_label: string;
+  recommendation_only: true;
+  rule_set_version_id: number;
+  rule_set_version_no: number;
+  inputs_sha256: string;
+  evaluated_by: string;
+  evaluated_at: string;
+  rules: RuleResult[];
+}
+
+export interface CreditDecision {
+  id: number;
+  decision: DecisionValue;
+  decision_label: string;
+  reason: string;
+  override: boolean;
+  decided_by: string;
+  decided_at: string;
+  approved_by: string | null;
+}
+
+export interface PartySummaryRef {
+  id: number;
+  party_no: string;
+  party_type: "person" | "organisation";
+  display_name: string;
+}
+
+export interface ApplicationListItem {
+  id: number;
+  application_no: string;
+  party_id: number;
+  product_code: ProductCode;
+  product_label: string;
+  repayment: "amortising" | "interest_only";
+  amount_requested: string;
+  term_months: number;
+  indicative_rate_percent: string;
+  estimated_instalment: string;
+  estimated_final_payment: string;
+  estimate_note: string;
+  business_start_date: string | null;
+  status: "open" | "decided";
+  created_by: string;
+  created_at: string;
+  party: PartySummaryRef | null;
+  recommendation: Outcome | null;
+  decision: DecisionValue | null;
+}
+
+export interface ApplicationDetail extends ApplicationListItem {
+  guarantors: PartySummaryRef[];
+  crb: CrbStatus | null;
+  documents: ApplicationDocument[];
+  latest_run: ScreeningRunResult | null;
+  decisions: CreditDecision[];
+  pending_override: number | null;
+}
+
+export interface ApplicationInput {
+  party_id: number;
+  product_code: ProductCode;
+  amount_requested: string;
+  term_months: number;
+  indicative_rate_percent: string;
+  business_start_date?: string;
+}
+
+export interface Estimate {
+  estimated_instalment: string;
+  estimated_final_payment: string;
+  repayment: "amortising" | "interest_only";
+  estimate_note: string;
+}
+
+export interface CheckEvidence {
+  source: string;
+  field: string;
+  value: string | null;
+  page: number | null;
+}
+
+export interface CrossCheck {
+  check: string;
+  status: CheckStatus;
+  reason: string;
+  evidence: CheckEvidence[];
+}
+
+export type ReviewAction = "accept" | "correct" | "not_present";
+
+export interface ReviewField {
+  id: number;
+  path: string;
+  value: string | null;
+  confidence: string | null;
+  source_page: number | null;
+  source_text: string | null;
+  legibility: string | null;
+  notes: string | null;
+  validation: "passed" | "failed" | "empty";
+  validation_reason: string | null;
+  low_confidence: boolean;
+  review: { action: ReviewAction; corrected_value: string | null; reason: string | null; reviewed_by: string } | null;
+}
+
+export interface ReviewPage {
+  page_number: number;
+  status: string;
+  opening_balance: string | null;
+  closing_balance: string | null;
+  credits_total: string | null;
+  debits_total: string | null;
+  difference: string | null;
+  reason: string | null;
+  reviewed_status: string;
+  reviewed_difference?: string | null;
+  reviewed_reason: string | null;
+  corrected_rows?: number;
+}
+
+export interface ReviewTransaction {
+  id: number;
+  page_number: number;
+  row_no: number;
+  date: string | null;
+  description: string | null;
+  reference: string | null;
+  debit: string | null;
+  credit: string | null;
+  balance: string | null;
+  confidence: string | null;
+  low_confidence: boolean;
+  review: { date: string | null; debit: string | null; credit: string | null; balance: string | null;
+    reason: string; reviewed_by: string } | null;
+}
+
+export interface ExtractionReviewDetail {
+  extraction: Extraction & { label: string };
+  document: { id: string; filename: string; content_type: string };
+  statement: boolean;
+  confidence_threshold: string;
+  state: ReviewState;
+  review: {
+    id: number;
+    state: ReviewState;
+    reviewed_by: string;
+    submitted_at: string | null;
+    approved_by: string | null;
+    change_request_id: number | null;
+    statement_unreliable: boolean;
+    unreliable_reason: string | null;
+    confirmed_metrics: { period_from: string | null; period_to: string | null; metrics: Record<string, string> } | null;
+    party_updates: { written: string[]; kept_existing: string[]; refused: string[] } | null;
+  } | null;
+  fields: ReviewField[];
+  pages: ReviewPage[];
+  transactions: ReviewTransaction[];
+  missing_actions: number;
+}
+
+export interface Rule {
+  id: string;
+  description: string;
+  metric: string;
+  comparison: string;
+  threshold: unknown;
+  outcome_if_failed: Outcome | Record<string, Outcome>;
+  applies_to?: { party_types?: string[]; products?: string[] };
+}
+
+export interface RuleSetInfo {
+  version_id: number | null;
+  version_no: number | null;
+  effective_from: string | null;
+  rule_set: { rules: Rule[] } | null;
+  metrics: { name: string; kind: "number" | "text"; description: string }[];
+  comparisons: string[];
+  outcomes: string[];
+  products: string[];
+  protected_attributes: string[];
+}
+
+export interface AiUsageMonth {
+  month: string;
+  calls: number;
+  readings: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+  by_type: { document_type: string; label: string; model: string; calls: number; ok_calls: number; readings: number;
+    input_tokens: number; output_tokens: number; cost_usd: string; cost_per_reading_usd: string | null }[];
+}
+
+export interface AiAccuracyRow {
+  document_type: string;
+  label: string;
+  values: number;
+  accepted: number;
+  corrected: number;
+  not_present: number;
+  confident_but_corrected: number;
+  accepted_as_read_percent: string | null;
+  statement_rows_corrected: number;
+}
+
+export interface DecisionLogReading {
+  document_id: string;
+  extraction: Extraction;
+  label: string;
+  calls: number;
+  review: {
+    state: ReviewState;
+    reviewed_by: string;
+    submitted_at: string | null;
+    approved_by: string | null;
+    approved_at: string | null;
+    statement_unreliable: boolean;
+    unreliable_reason: string | null;
+    values: { field: string; ai_value: string | null; ai_confidence: string | null; page: number | null;
+      action: string; confirmed_value: string | null; reason: string | null; reviewed_by: string }[];
+    rows_corrected: { page: number; row: number; description: string | null;
+      ai: Record<string, string | null>; confirmed: Record<string, string | null>; reason: string }[];
+    confirmed_metrics: { metrics: Record<string, string> } | null;
+  } | null;
+}
+
+export interface DecisionLog {
+  application: ApplicationDetail;
+  documents: ApplicationDocument[];
+  readings: DecisionLogReading[];
+  crb_statuses: CrbStatus[];
+  checks: CrossCheck[];
+  runs: ScreeningRunResult[];
+  decisions: CreditDecision[];
+  audit: { action: string; description: string | null; user: string | null; at: string }[];
+}

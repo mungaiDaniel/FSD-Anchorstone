@@ -204,9 +204,13 @@ def detail(extraction_id: int, actor) -> dict:
                                                        "debit": as_str(c.debit), "credit": as_str(c.credit),
                                                        "balance": as_str(c.balance), "reason": c.reason,
                                                        "reviewed_by": c.reviewed_by}})
+    from app.Documents.model import Document
+
+    doc = db.session.get(Document, ex.document_id)
     _log_view(ex, actor)
     db.session.commit()
     return {"extraction": {**ex.to_dict(), "label": types.label(ex.declared_type)},
+            "document": {"id": str(doc.id), "filename": doc.original_filename, "content_type": doc.content_type},
             "statement": bool(t and t.statement), "confidence_threshold": str(limit),
             "review": None if review is None else {
                 "id": review.id, "state": state(review), "reviewed_by": review.reviewed_by,

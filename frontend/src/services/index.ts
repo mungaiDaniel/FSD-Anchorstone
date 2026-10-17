@@ -58,6 +58,24 @@ import type {
   ReportInfo,
   ReportName,
   ReportSchedule,
+  AiAccuracyRow,
+  AiUsageMonth,
+  ApplicationDetail,
+  ApplicationInput,
+  ApplicationListItem,
+  CreditDecision,
+  CrbStatus,
+  CrbStatusValue,
+  CrossCheck,
+  DecisionLog,
+  DecisionValue,
+  Estimate,
+  Extraction,
+  ExtractionReviewDetail,
+  ReviewAction,
+  Rule,
+  RuleSetInfo,
+  ScreeningRunResult,
 } from "@/lib/types";
 
 /** Unwraps the API envelope {status, message, data}. */
@@ -359,4 +377,63 @@ export const watchlistService = {
   add: (data: { list: Watchlist; full_name: string; reason: string; source?: string;
     identifiers?: { id_type: string; value: string }[] }) => send<WatchlistEntry>("post", API.WATCHLIST, data),
   remove: (id: number, reason: string) => send<ChangeRequest>("post", API.WATCHLIST_REMOVE(id), { reason }),
+};
+
+// ── Pre-screen applications, AI review and pre-selection (phase 3b) ──
+
+export const applicationService = {
+  list: (params: { queue?: "ready_for_credit"; search?: string; page?: number; per_page?: number }) =>
+    get<Paginated<ApplicationListItem>>(API.APPLICATIONS, params),
+  get: (id: number) => get<ApplicationDetail>(API.APPLICATION(id)),
+  create: (data: ApplicationInput) => send<ApplicationDetail>("post", API.APPLICATIONS, data),
+  /** An ESTIMATE only: phase 5's product engine calculates the real schedule. */
+  estimate: (params: { product_code: string; amount_requested: string; term_months: number;
+    indicative_rate_percent: string }) => get<Estimate>(API.APPLICATION_ESTIMATE, params),
+  addGuarantor: (id: number, partyId: number) =>
+    send<ApplicationDetail>("post", API.APPLICATION_GUARANTORS(id), { party_id: partyId }),
+  addDocument: (id: number, documentId: string) =>
+    send<{ document_id: string }>("post", API.APPLICATION_DOCUMENTS(id), { document_id: documentId }),
+  enterCrb: (id: number, data: { status: CrbStatusValue; status_date: string; bureau: string; extraction_id?: number }) =>
+    send<CrbStatus>("post", API.APPLICATION_CRB(id), data),
+  checks: (id: number) => get<CrossCheck[]>(API.APPLICATION_CHECKS(id)),
+  screen: (id: number) => send<ScreeningRunResult>("post", API.APPLICATION_SCREEN(id)),
+  decide: (id: number, decision: DecisionValue, reason: string) =>
+    send<{ status: "recorded" | "pending_approval"; decision?: CreditDecision; change_request_id?: number }>(
+      "post", API.APPLICATION_DECISION(id), { decision, reason }),
+  log: (id: number) => get<DecisionLog>(API.APPLICATION_LOG(id)),
+  openDocument: (id: string, filename: string, contentType: string) =>
+    openBlob(API.DOCUMENT_CONTENT(id), filename, contentType),
+  /** The document's bytes as a local object URL (revoke it when done). */
+  async documentUrl(id: string, contentType: string): Promise<string> {
+    const res = await api.get(API.DOCUMENT_CONTENT(id), { responseType: "blob" });
+    return URL.createObjectURL(new Blob([res.data], { type: contentType }));
+  },
+};
+
+export const extractionService = {
+  request: (partyId: number, documentId: string) =>
+    send<Extraction>("post", API.EXTRACTION_REQUEST(partyId, documentId)),
+  retry: (id: number) => send<Extraction>("post", API.EXTRACTION_RETRY(id)),
+  review: (id: number) => get<ExtractionReviewDetail>(API.EXTRACTION_REVIEW(id)),
+  setField: (id: number, fieldId: number, action: ReviewAction, value?: string, reason?: string,
+    applicationId?: number) =>
+    send<ExtractionReviewDetail>("post", API.EXTRACTION_REVIEW_FIELD(id, fieldId),
+      { action, value, reason, application_id: applicationId }),
+  setRow: (id: number, rowId: number, data: { date?: string; debit?: string; credit?: string; balance?: string;
+    reason: string }, applicationId?: number) =>
+    send<ExtractionReviewDetail>("post", API.EXTRACTION_REVIEW_ROW(id, rowId), { ...data, application_id: applicationId }),
+  markUnreliable: (id: number, reason: string, applicationId?: number) =>
+    send<ExtractionReviewDetail>("post", API.EXTRACTION_REVIEW_UNRELIABLE(id), { reason, application_id: applicationId }),
+  submit: (id: number, applicationId?: number) =>
+    send<{ review_id: number; change_request_id: number }>("post", API.EXTRACTION_REVIEW_SUBMIT(id),
+      { application_id: applicationId }),
+};
+
+export const aiService = {
+  ruleSet: () => get<RuleSetInfo>(API.RULE_SET),
+  proposeRuleSet: (rules: Rule[], evidence: string, reason: string) =>
+    send<ChangeRequest>("post", API.SETTINGS_BUSINESS_KEY("screening.rule_set"),
+      { value: { rules }, source: "client_confirmed", evidence, reason }),
+  usage: (months = 12) => get<{ months: AiUsageMonth[]; currency: string; note: string }>(API.AI_USAGE, { months }),
+  accuracy: () => get<AiAccuracyRow[]>(API.AI_ACCURACY),
 };

@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Actor, Field, Stat } from "@/components/ui/Page";
 import { StatusBadge } from "@/components/data/StatusBadge";
 import { PartyChangeDiff } from "@/components/approvals/PartyChangeDiff";
+import { AiReviewSummary } from "@/components/approvals/AiReviewSummary";
 import { approvalService } from "@/services";
 import { useAuth } from "@/context/AuthContext";
 import { REQUEST_TYPE_LABELS } from "@/lib/constants";
@@ -170,6 +171,7 @@ export function ChangeRequestModal({ id, onClose, onDone }: { id: number | null;
           )}
           {cr.error && <div className="alert alert-warning py-2" style={{ fontSize: 13 }}>{cr.error}</div>}
 
+          {cr.request_type === "ai.review" && cr.entity_id && <AiReviewSummary cr={cr} />}
           {cr.request_type === "party.change" && cr.entity_id ? <PartyChangeDiff cr={cr} /> : (
             <>
               <p className="app-section-label mb-1">Details</p>

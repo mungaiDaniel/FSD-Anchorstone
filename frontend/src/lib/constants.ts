@@ -52,6 +52,11 @@ export const ROUTES = {
   CLIENT_EDIT: (id: number | string) => `/clients/${id}/edit`,
   WATCHLIST: "/watchlist",
   SETTINGS: "/settings",
+  APPLICATIONS: "/applications",
+  APPLICATION_NEW: "/applications/new",
+  APPLICATION_DETAIL: (id: number | string) => `/applications/${id}`,
+  REVIEW_EXTRACTION: (id: number | string) => `/readings/${id}/review`,
+  AI_OVERSIGHT: "/ai-oversight",
 } as const;
 
 // ── API paths (relative to VITE_API_URL) ──
@@ -148,6 +153,27 @@ export const API = {
   WATCHLIST: "/watchlist",
   WATCHLIST_REMOVE: (id: number) => `/watchlist/${id}/remove`,
   DOCUMENT_CONTENT: (id: string) => `/documents/${id}/content`,
+
+  APPLICATIONS: "/applications",
+  APPLICATION_ESTIMATE: "/applications/estimate",
+  APPLICATION: (id: number) => `/applications/${id}`,
+  APPLICATION_GUARANTORS: (id: number) => `/applications/${id}/guarantors`,
+  APPLICATION_DOCUMENTS: (id: number) => `/applications/${id}/documents`,
+  APPLICATION_CRB: (id: number) => `/applications/${id}/crb`,
+  APPLICATION_CHECKS: (id: number) => `/applications/${id}/checks`,
+  APPLICATION_SCREEN: (id: number) => `/applications/${id}/screen`,
+  APPLICATION_DECISION: (id: number) => `/applications/${id}/decision`,
+  APPLICATION_LOG: (id: number) => `/applications/${id}/log`,
+  EXTRACTION_REQUEST: (partyId: number, documentId: string) => `/parties/${partyId}/documents/${documentId}/extractions`,
+  EXTRACTION_RETRY: (id: number) => `/extractions/${id}/retry`,
+  EXTRACTION_REVIEW: (id: number) => `/extractions/${id}/review`,
+  EXTRACTION_REVIEW_FIELD: (id: number, fieldId: number) => `/extractions/${id}/review/fields/${fieldId}`,
+  EXTRACTION_REVIEW_ROW: (id: number, rowId: number) => `/extractions/${id}/review/transactions/${rowId}`,
+  EXTRACTION_REVIEW_UNRELIABLE: (id: number) => `/extractions/${id}/review/unreliable`,
+  EXTRACTION_REVIEW_SUBMIT: (id: number) => `/extractions/${id}/review/submit`,
+  RULE_SET: "/screening/rule-set",
+  AI_USAGE: "/ai/usage",
+  AI_ACCURACY: "/ai/accuracy",
   BRANCHES: "/branches",
 } as const;
 
@@ -278,4 +304,39 @@ export const REQUEST_TYPE_LABELS: Record<string, string> = {
   "party.merge": "Merge clients",
   "party.branch_transfer": "Branch transfer",
   "watchlist.remove": "Watchlist removal",
+  "ai.review": "AI reading review",
+  "application.crb_confirm": "CRB status",
+  "credit.override": "Credit override",
+};
+
+export const PRODUCT_LABELS: Record<string, string> = {
+  business_loan: "Business loan (3–24 months)",
+  bridge_loan: "Short-term bridge loan (1–3 months, principal at maturity)",
+  asset_finance: "Asset finance (6–36 months)",
+};
+
+export const OUTCOME_TONES: Record<string, string> = {
+  shortlisted: "badge-positive",
+  needs_review: "badge-waiting",
+  not_qualified: "badge-negative",
+};
+
+export const OUTCOME_LABELS: Record<string, string> = {
+  shortlisted: "Shortlisted",
+  needs_review: "Needs review",
+  not_qualified: "Not qualified",
+};
+
+export const CHECK_TONES: Record<string, string> = {
+  pass: "badge-positive",
+  fail: "badge-negative",
+  needs_review: "badge-waiting",
+  missing: "badge-waiting",
+  not_applicable: "badge-neutral",
+};
+
+export const CRB_STATUS_LABELS: Record<string, string> = {
+  clear: "Clear",
+  listed: "Listed",
+  previously_listed_cleared: "Previously listed, now cleared",
 };

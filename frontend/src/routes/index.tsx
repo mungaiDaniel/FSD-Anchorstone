@@ -27,6 +27,11 @@ const ClientFormPage = lazy(() => import("@/pages/clients/ClientFormPage"));
 const ClientDetailPage = lazy(() => import("@/pages/clients/ClientDetailPage"));
 const WatchlistPage = lazy(() => import("@/pages/clients/WatchlistPage"));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
+const ApplicationListPage = lazy(() => import("@/pages/applications/ApplicationListPage"));
+const ApplicationFormPage = lazy(() => import("@/pages/applications/ApplicationFormPage"));
+const ApplicationDetailPage = lazy(() => import("@/pages/applications/ApplicationDetailPage"));
+const ReviewExtractionPage = lazy(() => import("@/pages/applications/ReviewExtractionPage"));
+const AiOversightPage = lazy(() => import("@/pages/settings/AiOversightPage"));
 
 function PageLoader() {
   return (
@@ -75,6 +80,9 @@ const routes: RouteObject[] = [
       { path: "/clients/:id/edit", element: withSuspense(ClientFormPage) },
       { path: ROUTES.SETTINGS, element: withSuspense(SettingsPage) },
       { path: ROUTES.REPORTS, element: withSuspense(ReportsPage) },
+      { path: ROUTES.APPLICATIONS, element: withSuspense(ApplicationListPage) },
+      { path: ROUTES.APPLICATION_NEW, element: withSuspense(ApplicationFormPage) },
+      { path: "/applications/:id", element: withSuspense(ApplicationDetailPage) },
     ],
   },
 
@@ -87,6 +95,8 @@ const routes: RouteObject[] = [
     children: [
       { path: ROUTES.AUDIT_LOG, element: withSuspense(AuditLogPage) },
       { path: ROUTES.WATCHLIST, element: withSuspense(WatchlistPage) },
+      { path: "/readings/:id/review", element: withSuspense(ReviewExtractionPage) },
+      { path: ROUTES.AI_OVERSIGHT, element: withSuspense(AiOversightPage) },
     ],
   },
 
