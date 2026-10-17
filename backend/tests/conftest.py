@@ -40,6 +40,7 @@ _DATED_MODULES = (
     "app.Ledger.handlers",
     "app.Ledger.rules",
     "app.Ledger.engine",
+    "app.Ledger.route",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).

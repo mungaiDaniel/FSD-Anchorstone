@@ -49,7 +49,7 @@ def children(account: GlAccount) -> list[GlAccount]:
     return GlAccount.query.filter(GlAccount.parent_id == account.id).all()
 
 
-def _descendant_ids(account: GlAccount) -> set[int]:
+def descendant_ids(account: GlAccount) -> set[int]:
     out, todo = set(), [account.id]
     while todo:
         ids = [a.id for a in GlAccount.query.filter(GlAccount.parent_id.in_(todo)).all()]
@@ -115,7 +115,7 @@ def _parent(value, account_type: str, account: GlAccount | None = None) -> int |
         raise ValidationError(f"{parent.code} {parent.name} is inactive.")
     if parent.account_type != account_type:
         raise ValidationError(f"The parent's type is {parent.account_type}; this account's is {account_type}.")
-    if account is not None and (parent.id == account.id or parent.id in _descendant_ids(account)):
+    if account is not None and (parent.id == account.id or parent.id in descendant_ids(account)):
         raise ValidationError("An account can't sit under itself or one of its own sub-accounts.")
     return parent.id
 

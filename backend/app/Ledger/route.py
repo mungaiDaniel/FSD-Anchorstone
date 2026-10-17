@@ -7,6 +7,9 @@ General ledger.
     GET  /api/v1/gl/journals/<id>            an entry with its lines
     GET  /api/v1/gl/posting-rules            latest version per event type (?event_type= for history)
     GET  /api/v1/gl/posting-rules/<id>
+    GET  /api/v1/gl/trial-balance            ?as_of (default today) ?branch_id
+    GET  /api/v1/gl/accounts/<id>/balance    ?as_of ?branch_id (headers include sub-accounts)
+    GET  /api/v1/gl/accounts/<id>/statement  ?from ?to ?branch_id: opening, lines, running balance
 
 Changes are change requests submitted through POST /api/v1/change-requests
 (gl.account.create, gl.account.change, gl.period.close, gl.period.reopen,
@@ -15,8 +18,10 @@ gl.posting_rule.change).
 from flask import Blueprint, request
 
 from app.auth import requires
-from app.Ledger import accounts, journals, periods, rules
-from app.utils.http import ok
+from app.Ledger import accounts, balances, journals, periods, rules
+from app.utils.dates import parse_date, today_eat
+from app.utils.http import ValidationError, ok
+from app.utils.money import as_str
 
 ledger_v1 = Blueprint("ledger_v1", __name__)
 
@@ -63,3 +68,38 @@ def list_posting_rules():
 @requires("gl.view")
 def get_posting_rule(rule_id):
     return ok(rules.get_rule(rule_id).to_dict())
+
+
+def _branch_arg():
+    value = request.args.get("branch_id")
+    if value in (None, ""):
+        return None
+    if not value.isdigit():
+        raise ValidationError("branch_id must be a number.")
+    return int(value)
+
+
+@ledger_v1.get("/api/v1/gl/trial-balance")
+@requires("gl.view")
+def get_trial_balance():
+    as_of = parse_date(request.args.get("as_of"), "as_of", required=False) or today_eat()
+    return ok(balances.trial_balance(as_of, _branch_arg()))
+
+
+@ledger_v1.get("/api/v1/gl/accounts/<int:account_id>/balance")
+@requires("gl.view")
+def get_gl_account_balance(account_id):
+    as_of = parse_date(request.args.get("as_of"), "as_of", required=False) or today_eat()
+    branch_id = _branch_arg()
+    return ok({"gl_account_id": account_id, "as_of": as_of.isoformat(), "branch_id": branch_id,
+               "balance": as_str(balances.account_balance(account_id, as_of, branch_id))})
+
+
+@ledger_v1.get("/api/v1/gl/accounts/<int:account_id>/statement")
+@requires("gl.view")
+def get_gl_account_statement(account_id):
+    date_to = parse_date(request.args.get("to"), "to", required=False) or today_eat()
+    date_from = parse_date(request.args.get("from"), "from", required=False) or date_to.replace(day=1)
+    if date_from > date_to:
+        raise ValidationError("from must be on or before to.")
+    return ok(balances.account_statement(account_id, date_from, date_to, _branch_arg()))
