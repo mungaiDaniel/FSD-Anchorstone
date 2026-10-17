@@ -68,7 +68,9 @@ We're building now with our own defaults and will confirm them with Anchorstone 
 
 | 07 ID | Topic | Value in use | Source | Confirmed by | Setting |
 |---|---|---|---|---|---|
-| Q-F1 | Chart of accounts | Skeleton in 03 §2 until the accountant's list arrives | WA-13 | F1 | `gl_accounts` (structured) |
+| Q-F1 | Chart of accounts | Skeleton in 03 §2 until the accountant's list arrives. Seeded in `gl_accounts` with `source = working_assumption`; it holds every account named in FSD §13.1, plus 2810 Deferred fee income. | WA-13 | F1 | `gl_accounts` (structured, `gl.account.*` change requests) |
+| — | Financial year end | 31 December. Each GL period copies its financial year when opened; journal numbers run JV-<year>-000001 per financial year. | FSD FIN-05 (FSD cites G4) | **not in our questionnaire yet**: add it to section F | `gl.financial_year_end_month` (default 12) |
+| — | Investor posting rules | Version 1 of the 03 §4.1 rules; deposits and payouts use 1101 Bank - main operating account until company bank accounts are mapped (Q-F4) | 03 §4.1 + FSD §13.1 | F2 | `gl_posting_rules` (structured, `gl.posting_rule.change`) |
 | Q-F2 | Day count | **Actual/365**: every calendar day accrues (including 29 Feb) and the annual rate is divided by 365. The same as investor interest today. | FSD INT-01 + 07 (see §2.2 note) | C6 | product: `day_count` (default `ACT/365F`) |
 | Q-F3 | Provisioning | Bucket rates Normal 1%, Watch 3%, Substandard 20%, Doubtful 50%, Loss 100%, until the auditors approve a method (possibly IFRS 9 ECL) | WA-09 | E3 | `classification_sets` (structured) |
 | Q-F4 | Bank mapping for history | By method: bank transfer → main bank account, M-Pesa → paybill float, cheque → clearing, cash → cash on hand. Staff pick the receiving account on new deposits. | 07 | F2 | `company_bank_accounts` + `gl.backfill.method_account_map` |
@@ -307,6 +309,7 @@ That last step is a deliberate business decision, never a side effect.
 | Investor interest rate | `interest_rates` (exists) | Management |
 | Message templates | `notification_templates` | Q-C5, Q-CO7, FSD NTF-02 |
 | Chart of accounts, mappings | `gl_accounts`, `product_gl_mappings` | WA-13 |
+| Posting rules | `gl_posting_rules`, `gl_posting_rule_lines` (versioned, insert-only) | 03 §4.1 |
 | Branches | `branches` | Q-M4 |
 | Sign-in windows | `access_windows` | FSD SEC-04 |
 

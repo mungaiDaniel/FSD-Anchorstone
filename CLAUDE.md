@@ -90,6 +90,15 @@ Propose a recommended default.
 - **Documents** are linked to a party through `app/Parties/documents.py` (`document_links`). A new upload of the same type keeps the older file as an earlier version.
 - **The single client view** is `GET /api/v1/parties/<id>/overview` (`app/Parties/overview.py`). `loans` stays empty until phase 5.
 
+### General ledger (phase 4 core)
+
+- **`app/Ledger`** holds the chart of accounts, monthly periods, journals, the posting engine and the balance queries. The design is `docs/architecture/03-general-ledger.md`.
+- **Business code never writes journal lines.** It calls `engine.post(event_type, source=(type, id), value_date=…, branch_id=…, amounts={…}, refs={…}, actor_email=…)`, which builds the entry from the posting rule in force on the value date. It never commits: commit it with the business change and its audit entry. Posting the same source key twice is refused (`Conflict`). Corrections are `engine.reverse(entry_id, reason, actor)`.
+- **The database enforces the ledger**, so never work around it: balanced (checked at commit), at least two lines, no UPDATE/DELETE of entries or lines, nothing posted into a closed period, KES only, journal numbers `JV-<FY>-000001` allocated by the insert trigger.
+- **Only `app/Ledger/balances.py` sums journal lines** (a test enforces it).
+- **Changes are change requests:** `gl.account.create` / `gl.account.change` (accounts are never deleted; codes may change), `gl.posting_rule.change` (new insert-only version), `gl.period.close`, `gl.period.reopen` (reason, two super admins).
+- The investor services don't post to the GL yet (dual-write is the next step), and `ledger.py` is still the balance of record.
+
 ### Business rules are settings, not constants
 
 - Values the client may change (limits, rates, periods, retention …) live in `app/Settings/registry.py` and are read with `app.Settings.business.get(key, as_of=…, scope=…)`. Never hard-code one.

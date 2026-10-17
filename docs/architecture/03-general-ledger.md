@@ -122,7 +122,8 @@ Supporting constraints:
 - Business code never builds journal lines. It calls `ledger.post(event_code, source, amounts, context)`.
 - The engine looks up the **posting rule** for `(event_code, product_kind)`, resolves account *roles* through `product_gl_mappings` (02 §1.4) and fixed system accounts, and writes one balanced entry.
 - **Idempotency.** `journal_entries` has a unique `(source_type, source_id, event_code, occurrence)`, so a retried request or job can't post twice.
-- **Rules** are versioned Python data (reviewed in code review), not user-editable. **Account mappings** *are* user-editable through maker-checker.
+- **Rules** are versioned **data** (`gl_posting_rules` + `gl_posting_rule_lines`: account, debit or credit, amount field, client-account reference), insert-only in the database. A new version is a `gl.posting_rule.change` change request (second approver), dated today or later; the engine uses the version in force on the event's value date, and each journal records it (`journal_entries.posting_rule_id`). A rule is balanced by construction: every amount field appears on as many debit lines as credit lines. *(Changed from "rules in Python" at the user's decision, 17 Oct 2026.)* **Account mappings** are user-editable through maker-checker too.
+- **Events** are recorded in `gl_events` (insert-only), unique on the source key `(event_type, source_type, source_id, occurrence)`: posting the same event twice is refused with a conflict, never duplicated.
 - **Manual journals** (finance adjustments) go through `journal_drafts` → maker-checker → post. Control accounts and income accounts can't take manual entries unless the GL account allows it (FSD "restrict manual debits on income GLs").
 
 **Consequences**
@@ -149,6 +150,18 @@ Supporting constraints:
 
 ---
 
+### Built in phase 4 (core) — `app/Ledger`
+
+| Piece | Where | Notes |
+|---|---|---|
+| Chart of accounts | `gl_accounts`, `accounts.py`, `gl.account.create` / `gl.account.change` | Types asset/liability/equity/income/expense (memo accounts not yet), header or postable, control, optional branch, KES. Never deleted (trigger); codes can change. |
+| Periods | `gl_periods`, `periods.py`, `gl.period.close` / `gl.period.reopen` | `open` / `closed` only (no `soft_closed` yet). Months close in order after they end; reopen = latest closed only, reason, two super admins. Financial year from `gl.financial_year_end_month`. |
+| Journals | `journal_entries`, `journal_lines`, `journals.py` | Triggers in migration `f2a2b3c4d5e6`: balanced at commit, ≥ 2 lines, immutable, closed-period refusal, same-transaction lines, KES composite FK, control/header/inactive/branch checks, gapless `JV-<FY>-000001` numbers allocated by the insert trigger. Reversal link is `reversal_of` (03's `reverses_entry_id`). |
+| Engine | `engine.py`, `rules.py`, `gl_events` | `engine.post(event, source=…, value_date=…, branch_id=…, amounts=…, refs=…)`; never commits. Version 1 of the §4.1 investor rules is seeded; the investor services don't call it yet. |
+| Balances | `balances.py` (the only module that sums lines) | Account balance (by branch, header roll-up), subledger balance, trial balance, account statement with running balance. |
+
+Not yet built: dual-write from the investor services, backfill and R1–R10 reconciliation (§7), manual journals, `product_gl_mappings` / `company_bank_accounts`, the never-negative backstop (§3.4), snapshots, inter-branch splitting, revoking UPDATE/DELETE grants from the app role, GL screens.
+
 ## 1. Tables (summary; full fields in 02 §1.10)
 
 | Table | Purpose | Mutable? |
@@ -158,7 +171,7 @@ Supporting constraints:
 | `journal_entries` | Header | **No.** |
 | `journal_lines` | Lines with branch, subledger account, product and cost-centre dimensions | **No.** |
 | `journal_drafts` / `journal_draft_lines` | Manual journals before approval | Yes, until approved. |
-| `posting_rule_versions` (code) | Event → line templates | Code-reviewed. |
+| `gl_posting_rules` / `gl_posting_rule_lines` | Event → line templates, versioned | Insert-only; new versions via maker-checker. |
 | `product_gl_mappings` | Role → GL account per product version | Via maker-checker. |
 | `company_bank_accounts` | Anchorstone's bank accounts and M-Pesa paybill → GL account | Via maker-checker. |
 | `account_balance_snapshots` | Optional EOD cache `(account_id, business_date, balance)` | Rebuilt by EOD. Verified against lines. |
