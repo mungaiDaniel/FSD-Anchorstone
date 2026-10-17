@@ -85,6 +85,7 @@ Propose a recommended default.
   - Other contacts save immediately and are audited.
   - The other party change requests are `party.verify`, `party.pep_approve` (two senior approvers), `party.merge`, `party.branch_transfer` and `watchlist.remove`.
 - **Screening** (`app/Parties/screening.py`) runs at onboarding, on identity changes, when a watchlist name is added, and daily (`screening.rescreen` job), against the lists in the setting `screening.lists_enabled`. A pending match blocks KYC verification. The reviewer can't be the onboarding maker (`assert_can_decide` + CHECK constraint).
+- **The UN sanctions list** is loaded by `app/Parties/sanctions_un.py` (daily job `screening.un_sanctions_import`, or `flask --app main import-un-sanctions --file …`). It is keyed by UN reference number, a delisted entry is marked `removed`, and re-running a file is a no-op. It's off until `screening.un_sanctions.import_enabled` is on and `sanctions_un` is in `screening.lists_enabled`. Tests use `tests/fixtures/un_consolidated_small.xml` and never download.
 - **Consent** (`app/Parties/consent.py`): recorded with purpose, method, notice version and who captured it. A withdrawal is a new state, never a delete.
 - **Documents** are linked to a party through `app/Parties/documents.py` (`document_links`). A new upload of the same type keeps the older file as an earlier version.
 - **The single client view** is `GET /api/v1/parties/<id>/overview` (`app/Parties/overview.py`). `loans` stays empty until phase 5.

@@ -7,6 +7,7 @@ The investor migration (parties_from_investors) carries a frozen copy of these
 rules; change both together or the migrated values won't match new captures.
 """
 import re
+import unicodedata
 
 ID_TYPES = ("national_id", "passport", "alien_id", "kra_pin", "company_reg_no")
 ID_TYPE_LABELS = {
@@ -55,6 +56,10 @@ def normalise_phone(value: str | None) -> str | None:
 
 
 def normalise_name(value: str | None) -> str:
-    """For name matching: upper case letters and digits, words sorted (so "Doe, Jane" = "Jane Doe")."""
-    words = re.sub(r"[^A-Z0-9 ]", " ", (value or "").upper()).split()
+    """For name matching: accents folded ("Qaïda" = "Qaida"), upper case letters and digits, words
+    sorted (so "Doe, Jane" = "Jane Doe"). Watchlist entries store the result (name_normalised), so a
+    change here needs a migration that recomputes them (see fold_watchlist_name_accents)."""
+    text = unicodedata.normalize("NFKD", value or "")
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    words = re.sub(r"[^A-Z0-9 ]", " ", text.upper()).split()
     return " ".join(sorted(words))

@@ -233,7 +233,7 @@ class PDFStatementGenerator:
         account_rows = [
             ["Investor", Paragraph(escape(inv["full_name"]), self.normal_style)],
             ["Account", inv["client_code"]],
-            ["Statement date", datetime.now(timezone.utc).strftime("%d %b %Y")],
+            ["Statement date", _date(d["issued_on"])],
             ["Interest paid to", Paragraph(escape(payout_to), self.normal_style)],
         ]
         t = Table(account_rows, colWidths=[2.2 * inch, 4.8 * inch])

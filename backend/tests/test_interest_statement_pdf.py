@@ -73,3 +73,9 @@ def test_changes_after_approval_do_not_change_the_issued_pdf(staff, admin1, admi
     # and staff see the same file as issued.
     res = staff.get(f"/api/v1/interest/payouts/{email.payout_id}/statement.pdf")
     assert res.status_code == 200 and res.data == stored
+
+
+def test_statement_is_dated_nairobi_today_not_the_server_clock(admin1, admin2, make_investor, deposit, rate):
+    _, email = approve_september(admin1, admin2, make_investor, deposit, rate)
+    text = pdf_text(generate_interest_statement_pdf(email.payout_id))
+    assert "05 Oct 2026" in text  # today_eat() as pinned by the tests, whatever the real date is

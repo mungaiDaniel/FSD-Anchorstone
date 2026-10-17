@@ -45,7 +45,8 @@ def _import_models():
     from app.Jobs.model import Job, PeriodicTask  # noqa: F401
     from app.Parties.model import (  # noqa: F401
         Account, Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
-        PartyConsent, PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, ScreeningResult, WatchlistEntry,
+        PartyConsent, PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, SanctionsListImport, ScreeningResult,
+        WatchlistEntry,
     )
     from app.Reports.model import ReportSchedule  # noqa: F401
     from app.Settings.model import EmailSettings, SettingVersion  # noqa: F401
@@ -169,6 +170,29 @@ def _register_cli(app: Flask) -> None:
         click.echo(format_report(report))
         if report["blocking"]:
             raise SystemExit(1)
+
+    @app.cli.command("import-un-sanctions")
+    @click.option("--file", "path", type=click.Path(exists=True, dir_okay=False),
+                  help="Import this copy of the consolidated XML instead of downloading it.")
+    @click.option("--allow-mass-removal", is_flag=True, help="Apply a file that delists many entries at once.")
+    def import_un_sanctions(path, allow_mass_removal):
+        """Import the UN Security Council consolidated sanctions list now (normally a daily job)."""
+        from app.Parties.sanctions_un import download, import_xml
+        from app.Settings import business
+        from app.utils.http import ValidationError
+
+        if path:
+            with open(path, "rb") as f:
+                content, source = f.read(), f"file:{os.path.basename(path)}"
+        else:
+            source = business.get("screening.un_sanctions.source_url")
+            content = download(source)
+        try:
+            result = import_xml(content, source, "cli:import-un-sanctions", allow_mass_removal=allow_mass_removal)
+        except ValidationError as e:
+            db.session.rollback()
+            raise click.ClickException(e.message)
+        click.echo(result)
 
     @app.cli.command("create-superadmin")
     @click.option("--name", prompt=True)
