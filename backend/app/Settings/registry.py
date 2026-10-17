@@ -115,6 +115,52 @@ def subset_of(*choices):
     return check
 
 
+def keyword_list(max_items: int = 200, max_len: int = 60):
+    """Words or phrases matched against statement descriptions (upper-cased, de-duplicated)."""
+    def check(value):
+        if not isinstance(value, list) or not value or len(value) > max_items:
+            raise ValidationError(f"must be a list of 1 to {max_items} words or phrases.")
+        out = set()
+        for item in value:
+            text = " ".join(str(item or "").split()).upper()
+            if not text or len(text) > max_len:
+                raise ValidationError(f"each entry must be 1 to {max_len} characters.")
+            out.add(text)
+        return sorted(out)
+    return check
+
+
+def price_table(value):
+    """{model id: {"input": USD per million input tokens, "output": USD per million output tokens}}."""
+    if not isinstance(value, dict) or not value:
+        raise ValidationError("must map each model to its input and output price per million tokens.")
+    out = {}
+    for model, prices in value.items():
+        label(80)(model)
+        if not isinstance(prices, dict) or set(prices) != {"input", "output"}:
+            raise ValidationError(f"{model} needs exactly an input and an output price.")
+        row = {}
+        for side in ("input", "output"):
+            try:
+                number = Decimal(str(prices[side]).strip())
+            except (InvalidOperation, AttributeError):
+                raise ValidationError(f"{model} {side} price must be a number.")
+            if number < 0 or number != number.quantize(Decimal("0.0001")):
+                raise ValidationError(f"{model} {side} price must be zero or more, with at most 4 decimal places.")
+            row[side] = f"{number:.4f}"
+        out[model] = row
+    return out
+
+
+AI_PRICES = {  # USD per million tokens, Anthropic list prices October 2026
+    "claude-opus-5-5": {"input": "4.0000", "output": "20.0000"},
+    "claude-sonnet-5-5": {"input": "2.0000", "output": "10.0000"},
+    "claude-haiku-5-5": {"input": "0.1000", "output": "0.5000"},
+}
+LENDER_KEYWORDS = ("FULIZA", "M-SHWARI", "MSHWARI", "KCB M-PESA", "TALA", "BRANCH INTERNATIONAL", "ZENKA", "OKOLEA",
+                   "HUSTLER FUND", "LOAN REPAYMENT")
+RETURNED_ITEM_KEYWORDS = ("RTD", "UNPAID", "RETURNED", "INSUFF", "DISHON", "BOUNCED")
+
 MIME_TYPES = ("application/pdf", "image/jpeg", "image/png", "image/heic", "image/tiff")
 # Compulsory KYC details (07 Q-C1); the names are checked in app/Parties/service.py missing_fields().
 PERSON_REQUIRED_FIELDS = ("name", "id_document", "kra_pin", "date_of_birth", "mobile", "physical_address",
@@ -214,7 +260,27 @@ DEFINITIONS = [
     # ── AI ──
     SettingDefinition("ai.enabled", "bool", False, boolean, IMMEDIATE, "ai",
                       "AI document processing. Stays off until data location and the DPO are confirmed.",
-                      approvals_required=2, wa_ref="07 Q-CO2", questionnaire_ref="G1"),
+                      approvals_required=2, in_use=True, wa_ref="07 Q-CO2", questionnaire_ref="G1"),
+    SettingDefinition("ai.model_extract", "text", "claude-opus-5-5", label(80), IMMEDIATE, "ai",
+                      "Claude model that reads documents. Copied onto each extraction when it is requested. A change "
+                      "needs an accuracy run on the sample set first (05 §12).", approvals_required=2, in_use=True,
+                      wa_ref="05 ADR-05-2", questionnaire_ref="H5"),
+    SettingDefinition("ai.effort", "enum", "medium", one_of("low", "medium", "high"), IMMEDIATE, "ai",
+                      "How much reasoning the model spends per page (higher reads harder scans, costs more).",
+                      in_use=True, wa_ref="internal", questionnaire_ref="H6", choices=("low", "medium", "high")),
+    SettingDefinition("ai.max_attempts", "int", 3, int_between(1, 5), IMMEDIATE, "ai",
+                      "Tries per AI call when the service is busy or failing, with a growing pause between "
+                      "them. Then the document is marked 'extraction failed' for a retry or manual capture.",
+                      in_use=True, wa_ref="05 §11"),
+    SettingDefinition("ai.price_table", "json", AI_PRICES, price_table, IMMEDIATE, "ai",
+                      "Price per million input and output tokens (USD) for each model, used to estimate the cost "
+                      "of every AI call.", in_use=True, wa_ref="05 §11", questionnaire_ref="H6"),
+    SettingDefinition("ai.statements.lender_keywords", "list", sorted(LENDER_KEYWORDS), keyword_list(), IMMEDIATE,
+                      "ai", "Statement descriptions containing any of these words count as repayments to other "
+                      "lenders.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),
+    SettingDefinition("ai.statements.returned_item_keywords", "list", sorted(RETURNED_ITEM_KEYWORDS), keyword_list(),
+                      IMMEDIATE, "ai", "Statement descriptions containing any of these words count as bounced or "
+                      "returned items.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),
 ]
 
 REGISTRY: dict[str, SettingDefinition] = {d.key: d for d in DEFINITIONS}

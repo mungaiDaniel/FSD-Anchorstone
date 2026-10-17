@@ -35,7 +35,8 @@ def upload(api, party_id, document_type="national_id", data=PDF, content_type="a
 def test_document_types_match_fsd_section_5_1():
     fsd_5_1 = {"national_id", "passport", "kra_pin", "cr12", "certificate_of_incorporation", "bank_statement",
                "mpesa_statement", "audited_financial_statements", "title_deed", "logbook", "valuation_report"}
-    assert set(PARTY_DOCUMENT_TYPES) == fsd_5_1 | {"photo", "signature", "consent_form", "other"}
+    # crb_report: added by the phase 3a brief (the AI reads it too).
+    assert set(PARTY_DOCUMENT_TYPES) == fsd_5_1 | {"crb_report", "photo", "signature", "consent_form", "other"}
 
 
 def test_upload_is_linked_to_the_client_and_encrypted(staff, admin1):

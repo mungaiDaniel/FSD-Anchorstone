@@ -32,7 +32,7 @@ from base_model import Base
 
 DOC_ACTIVE = "active"
 DOC_DESTROYED = "destroyed"
-ACCESS_ACTIONS = ("view", "download", "upload", "destroy")
+ACCESS_ACTIONS = ("view", "download", "upload", "destroy", "process")  # process: read by a background job
 
 
 class Document(Base, db.Model):
@@ -99,7 +99,8 @@ class DataAccessLog(Base, db.Model):
 
     __tablename__ = "data_access_logs"
     __table_args__ = (
-        CheckConstraint("action IN ('view', 'download', 'upload', 'destroy')", name="ck_data_access_logs_action"),
+        CheckConstraint("action IN ('view', 'download', 'upload', 'destroy', 'process')",
+                        name="ck_data_access_logs_action"),
         Index("ix_data_access_logs_document", "document_id", "at"),
     )
 

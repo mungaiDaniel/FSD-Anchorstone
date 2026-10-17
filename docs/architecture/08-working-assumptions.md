@@ -123,6 +123,8 @@ We're building now with our own defaults and will confirm them with Anchorstone 
 | — (FSD NTF-01) | Repayment reminders **3 days before** and on the due date; missed payment, receipt, disbursement, insurance expiry, statements | internal | `notifications.reminder_days_before` (default [3, 0]) |
 | — (FSD REP-02) | Allocation order: penalty → interest → principal. Disposal proceeds: principal → interest → penalty. | internal | product: `allocation_order`, `disposal_allocation_order` |
 | — (FSD SEC-04) | Restrict sign-in times per user; block users on leave | internal | `access_windows` (structured) |
+| — (phase 3a) | AI reads documents with **Claude Opus 5.5** (`claude-opus-5-5`) at effort `medium`; 3 tries per call; list prices Opus 5.5 $4 / $20, Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50 per million input / output tokens | H5, H6 (model chosen with the client 2026-10-17; accuracy sign-off still due) | `ai.model_extract` (2 approvers), `ai.effort`, `ai.max_attempts`, `ai.price_table` |
+| — (05 §6.2) | Statement keywords. Other lenders: FULIZA, M-SHWARI, MSHWARI, KCB M-PESA, TALA, BRANCH INTERNATIONAL, ZENKA, OKOLEA, HUSTLER FUND, LOAN REPAYMENT. Bounced / returned: RTD, UNPAID, RETURNED, INSUFF, DISHON, BOUNCED. Whole-word, case-insensitive. | H3 (credit to extend the lender list) | `ai.statements.lender_keywords`, `ai.statements.returned_item_keywords` |
 
 ---
 
@@ -230,7 +232,7 @@ The registry is the single list of setting keys. Each entry declares:
 | `binding` | When the value attaches to a record (§3.3): `immediate`, `event_date`, `at_booking`, `new_versions_only` |
 | `category` | `credit` / `finance` / `investments` / `compliance` / `security` / `operations` |
 | `edit_permission`, `approve_permission` | e.g. `settings.credit.edit` / `settings.credit.approve`. System administrators can't approve non-IT categories (segregation of duties). |
-| `approvals_required` | 1 by default. 2 for `security.*` and `ai.enabled`. (`kyc.maker_checker_fields` is planned at 2 but is 1 in the registry, pending confirmation.) |
+| `approvals_required` | 1 by default. 2 for `security.*`, `ai.enabled` and `ai.model_extract`. (`kyc.maker_checker_fields` is planned at 2 but is 1 in the registry, pending confirmation.) |
 | `wa_ref`, `questionnaire_ref`, `seventeen_ref` | Traceability back to this document |
 | `description` | Plain-language text shown on the Settings screen |
 
@@ -316,8 +318,9 @@ Each gains `source` and `evidence` columns, so the go-live report covers them to
 | Kind | Where | Examples |
 |---|---|---|
 | Business rules | **Settings registry / structured config** (this document) | Everything in §1 marked with a setting key |
-| Secrets and infrastructure | **Environment** (unchanged) | `SECRET_KEY`, `DATABASE_URI`, `ANTHROPIC_API_KEY`, `AI_MODEL_*` (gated by the evaluation harness, ADR-05-2), SMTP and Daraja credentials, `TRUSTED_PROXY_COUNT`, backup credentials |
+| Secrets and infrastructure | **Environment** (unchanged) | `SECRET_KEY`, `DATABASE_URI`, `ANTHROPIC_API_KEY`, `AI_REQUEST_TIMEOUT_S`, SMTP and Daraja credentials, `TRUSTED_PROXY_COUNT`, backup credentials |
 | Operational tuning | Settings, category `operations` | Email batch size and interval (already in `email_settings`, to be folded into the registry), AI concurrency and budgets |
+| AI model and prices | Settings, category `ai` (phase 3a; replaces the `AI_MODEL_*` environment variables of ADR-05-2) | `ai.model_extract` (two approvers; a change still needs an accuracy run, 05 §12), `ai.price_table` |
 
 The `LOGIN_*` values currently in `config.py` move to `security.*` settings. The environment values become the seed defaults for the migration only.
 

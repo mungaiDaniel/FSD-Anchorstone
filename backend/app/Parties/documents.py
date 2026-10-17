@@ -11,17 +11,17 @@ from app.Documents.model import Document, DocumentLink
 from app.Parties import service as parties
 from app.utils.http import Conflict, ValidationError
 
-# FSD v0.1 §5.1 (the documents the pipeline will read), plus photo, signature and the
+# FSD v0.1 §5.1 (the documents the pipeline will read) and the CRB report (phase 3a), plus photo, signature and the
 # signed consent form from the onboarding image list, and "other".
 PARTY_DOCUMENT_TYPES = ("national_id", "passport", "kra_pin", "cr12", "certificate_of_incorporation", "bank_statement",
                         "mpesa_statement", "audited_financial_statements", "title_deed", "logbook", "valuation_report",
-                        "photo", "signature", "consent_form", "other")
+                        "crb_report", "photo", "signature", "consent_form", "other")
 DOCUMENT_TYPE_LABELS = {
     "national_id": "National ID", "passport": "Passport", "kra_pin": "KRA PIN certificate", "cr12": "CR12",
     "certificate_of_incorporation": "Certificate of incorporation / business registration",
     "bank_statement": "Bank statement", "mpesa_statement": "M-Pesa statement",
     "audited_financial_statements": "Audited financial statements", "title_deed": "Title deed",
-    "logbook": "Logbook", "valuation_report": "Valuation report", "photo": "Photo", "signature": "Signature",
+    "logbook": "Logbook", "valuation_report": "Valuation report", "crb_report": "CRB report", "photo": "Photo", "signature": "Signature",
     "consent_form": "Signed consent form", "other": "Other",
 }
 

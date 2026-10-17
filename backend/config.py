@@ -79,6 +79,12 @@ class BaseConfig:
     DOCUMENT_KEK = os.environ.get("DOCUMENT_KEK")
     DOCUMENT_KEK_ID = os.environ.get("DOCUMENT_KEK_ID", "env-1")
 
+    # AI document extraction (app/DocAI). The key is a secret: never logged, never stored in the
+    # database, never sent to a browser. The model and prices are business settings (ai.*), and
+    # ai.enabled must be switched on (two approvers) before anything is sent.
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+    AI_REQUEST_TIMEOUT_S = _env_int("AI_REQUEST_TIMEOUT_S", 300)
+
     # Daily pg_dump -> OneDrive backups. Off until Azure credentials are set up.
     DB_BACKUP_ENABLED = _env_bool("DB_BACKUP_ENABLED", False)
     DB_BACKUP_HOUR_UTC = _env_int("DB_BACKUP_HOUR_UTC", 1)
@@ -127,6 +133,8 @@ class TestingConfig(BaseConfig):
     DOCUMENT_KEK = base64.b64encode(b"anchorstone-test-kek-32-bytes!!!").decode()
     DOCUMENT_KEK_ID = "test-1"
     DOCUMENT_STORE_PATH = os.path.join(tempfile.gettempdir(), "anchorstone_test_documents")
+    # A recognisable fake: tests check it never leaks. Real calls are mocked (see tests/test_docai.py).
+    ANTHROPIC_API_KEY = "sk-ant-test-0000-not-a-real-key-0000"
     DB_BACKUP_ENABLED = False
 
 

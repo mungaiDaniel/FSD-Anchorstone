@@ -34,7 +34,7 @@ class DocumentIntegrityError(ApiError):
 
 DOCUMENT_TYPES = ("national_id", "passport", "kra_pin", "cr12", "certificate_of_incorporation", "bank_statement",
                   "mpesa_statement", "audited_financial_statements", "title_deed", "logbook", "valuation_report",
-                  "payslip", "photo", "signature", "consent_form", "other")
+                  "crb_report", "payslip", "photo", "signature", "consent_form", "other")
 
 # First bytes of each accepted type: the declared content type must match the file.
 _MAGIC = {
@@ -51,9 +51,10 @@ def _looks_like(content_type: str, data: bytes) -> bool:
     return any(data.startswith(m) for m in _MAGIC.get(content_type, ()))
 
 
-def _log_access(document: Document | None, actor: User, action: str, entity=(None, None)) -> None:
+def _log_access(document: Document | None, actor: User, action: str, entity=(None, None),
+                processor: str = "system") -> None:
     db.session.add(DataAccessLog(
-        user_id=actor.id if actor else None, user_email=actor.email if actor else "system",
+        user_id=actor.id if actor else None, user_email=actor.email if actor else processor,
         document_id=document.id if document else None, entity_type=entity[0], entity_id=entity[1], action=action,
         ip_address=get_client_ip() if has_request_context() else None,
         user_agent=(request.headers.get("User-Agent") or "")[:255] if has_request_context() else None,
@@ -126,6 +127,17 @@ def _assert_can_view(doc: Document, actor: User) -> None:
 def read(document_id, actor: User, action: str = "download") -> tuple[Document, bytes]:
     doc = get_document(document_id)
     _assert_can_view(doc, actor)
+    return doc, _decrypt(doc, actor, action)
+
+
+def read_for_processing(document_id, processor: str, entity=(None, None)) -> tuple[Document, bytes]:
+    """A background job's read (e.g. AI extraction). No user: the job was authorised when it was
+    requested. Logged as action 'process' by `processor`, with the same integrity check as read()."""
+    doc = get_document(document_id)
+    return doc, _decrypt(doc, None, "process", entity, processor)
+
+
+def _decrypt(doc: Document, actor: User | None, action: str, entity=(None, None), processor: str = "system") -> bytes:
     if doc.status == DOC_DESTROYED:
         raise Gone("This document was destroyed and can't be opened.")
     try:
@@ -139,9 +151,9 @@ def read(document_id, actor: User, action: str = "download") -> tuple[Document, 
                          description=str(e), success=False, error_message=str(e))
         db.session.commit()
         raise DocumentIntegrityError("This document failed its integrity check and wasn't served. It has been reported.")
-    _log_access(doc, actor, action)
+    _log_access(doc, actor, action, entity, processor)
     db.session.commit()
-    return doc, plaintext
+    return plaintext
 
 
 def metadata(document_id, actor: User) -> Document:
