@@ -121,6 +121,9 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/extractions/<int:extraction_id>/review/unreliable"),
     ("POST", "/api/v1/extractions/<int:extraction_id>/review/submit"),
     ("GET", "/api/v1/applications/<int:application_id>/checks"),
+    ("POST", "/api/v1/applications/<int:application_id>/screen"),
+    ("GET", "/api/v1/applications/<int:application_id>/runs"),
+    ("POST", "/api/v1/applications/<int:application_id>/decision"), ("GET", "/api/v1/screening/rule-set"),
 }
 
 

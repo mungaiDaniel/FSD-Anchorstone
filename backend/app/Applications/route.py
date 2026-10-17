@@ -146,3 +146,49 @@ def _application_id() -> int | None:
 def application_checks(application_id):
     from app.Applications import checks
     return ok(checks.run(application_id))
+
+
+# ── Pre-selection and decision (AI-08, AI-09) ──
+
+
+@applications_v1.post("/api/v1/applications/<int:application_id>/screen")
+@requires("application.manage")
+def screen_application(application_id):
+    from app.Applications import screening
+    run = screening.screen(application_id, current_user())
+    return ok(screening.run_dict(run), f"Recommendation: {screening.OUTCOME_LABELS[run.outcome]}.", 201)
+
+
+@applications_v1.get("/api/v1/applications/<int:application_id>/runs")
+@requires("application.view")
+def application_runs(application_id):
+    from app.Applications import screening
+    from app.Applications.model import ScreeningRun
+    service.get(application_id)
+    runs = (ScreeningRun.query.filter_by(application_id=application_id)
+            .order_by(ScreeningRun.evaluated_at.desc(), ScreeningRun.id.desc()).all())
+    return ok([screening.run_dict(r) for r in runs])
+
+
+@applications_v1.post("/api/v1/applications/<int:application_id>/decision")
+@requires("credit.decide")
+def record_decision(application_id):
+    from app.Applications import screening
+    result = screening.decide(application_id, _body(), current_user())
+    if result["status"] == "pending_approval":
+        return ok(result, "Proceeding against a Not qualified recommendation needs a second approver.", 202)
+    return ok(result, "Decision recorded.", 201)
+
+
+@applications_v1.get("/api/v1/screening/rule-set")
+@requires("application.view")
+def rule_set():
+    from app.Applications.ruleset import COMPARISONS, FAIL_OUTCOMES, METRICS, PRODUCT_CODES, PROTECTED
+    from app.Settings import business
+    row = business.current_version("screening.rule_set")
+    return ok({"version_id": row.id if row else None, "version_no": row.version_no if row else None,
+               "effective_from": row.effective_from.isoformat() if row else None,
+               "rule_set": row.value if row else None,
+               "metrics": [{"name": k, "kind": v[0], "description": v[1]} for k, v in METRICS.items()],
+               "comparisons": list(COMPARISONS), "outcomes": list(FAIL_OUTCOMES), "products": list(PRODUCT_CODES),
+               "protected_attributes": sorted(PROTECTED)})

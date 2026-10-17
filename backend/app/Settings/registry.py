@@ -183,6 +183,16 @@ LENDER_KEYWORDS = ("FULIZA", "M-SHWARI", "MSHWARI", "KCB M-PESA", "TALA", "BRANC
                    "HUSTLER FUND", "LOAN REPAYMENT")
 RETURNED_ITEM_KEYWORDS = ("RTD", "UNPAID", "RETURNED", "INSUFF", "DISHON", "BOUNCED")
 
+def _rule_set(value):
+    from app.Applications.ruleset import validate
+    return validate(value)
+
+
+def _default_rule_set():
+    from app.Applications.ruleset import DEFAULT_RULE_SET
+    return DEFAULT_RULE_SET
+
+
 MIME_TYPES = ("application/pdf", "image/jpeg", "image/png", "image/heic", "image/tiff")
 # Compulsory KYC details (07 Q-C1); the names are checked in app/Parties/service.py missing_fields().
 PERSON_REQUIRED_FIELDS = ("name", "id_document", "kra_pin", "date_of_birth", "mobile", "physical_address",
@@ -231,6 +241,11 @@ DEFINITIONS = [
                       "operations", "Repayment reminders: days before the due date (0 = on the day).",
                       wa_ref="FSD NTF-01", questionnaire_ref="internal"),
     # ── Lending (not used until phase 5) ──
+    SettingDefinition("screening.rule_set", "json", _default_rule_set(), _rule_set, IMMEDIATE, "lending",
+                      "Pre-selection rules (WA-10): each with a metric, comparison, threshold and the outcome if it "
+                      "fails. Rules only recommend Shortlisted, Needs review or Not qualified; people decide. "
+                      "Protected attributes can't be used.", in_use=True, wa_ref="WA-10 / FSD §5.3",
+                      questionnaire_ref="H3, H4"),
     SettingDefinition("lending.max_open_loans_per_client", "int", 3, int_between(1, 50), AT_BOOKING, "lending",
                       "Most open loans one client may hold.", wa_ref="WA-05", questionnaire_ref="C7"),
     SettingDefinition("lending.max_open_loans_per_group", "int", 3, int_between(1, 50), AT_BOOKING, "lending",

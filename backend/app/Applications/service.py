@@ -214,6 +214,9 @@ def list_applications(queue: str | None = None, search: str | None = None):
     from app.Parties.model import Party
 
     q = LoanApplication.query.join(Party, Party.id == LoanApplication.party_id)
+    if queue == "ready_for_credit":
+        from app.Applications.screening import ready_for_credit_ids
+        q = q.filter(LoanApplication.id.in_(ready_for_credit_ids() or [0]))
     if search:
         like = f"%{search.strip()}%"
         q = q.filter(or_(LoanApplication.application_no.ilike(like), Party.display_name.ilike(like),
@@ -224,8 +227,13 @@ def list_applications(queue: str | None = None, search: str | None = None):
 def list_row(row: LoanApplication) -> dict:
     from app.Parties.model import Party
 
+    from app.Applications.screening import decisions, latest_run
+
     party = db.session.get(Party, row.party_id)
-    return {**row.to_dict(), "party": party.summary() if party else None}
+    run = latest_run(row.id)
+    last = (decisions(row.id) or [None])[-1]
+    return {**row.to_dict(), "party": party.summary() if party else None,
+            "recommendation": run.outcome if run else None, "decision": last["decision"] if last else None}
 
 
 def documents(application_id: int) -> list[dict]:
@@ -250,8 +258,10 @@ def documents(application_id: int) -> list[dict]:
 
 
 def detail(application_id: int) -> dict:
+    from app.Applications.screening import screening_summary
+
     row = get(application_id)
-    return {**summary(row), "documents": documents(row.id)}
+    return {**summary(row), "documents": documents(row.id), **screening_summary(row.id)}
 
 
 def summary(row: LoanApplication) -> dict:

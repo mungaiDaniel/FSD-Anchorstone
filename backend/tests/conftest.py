@@ -37,6 +37,8 @@ _DATED_MODULES = (
     "app.Settings.handlers",
     "app.Parties.service",
     "app.DocAI.validators",
+    "app.Applications.service",
+    "app.Applications.screening",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).
