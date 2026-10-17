@@ -44,6 +44,7 @@ REFERENCE_TABLES = (
     "branches",
     "departments", "permissions", "roles", "role_permissions", "transaction_limits", "sod_conflicts",
     "approval_policies", "setting_versions", "periodic_tasks",
+    "gl_accounts",
 )
 
 

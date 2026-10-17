@@ -68,3 +68,4 @@ def load_handlers() -> None:
     import app.Documents.service  # noqa: F401
     import app.Parties.handlers  # noqa: F401
     import app.Parties.merge  # noqa: F401
+    import app.Ledger.handlers  # noqa: F401

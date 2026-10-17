@@ -43,6 +43,7 @@ def _import_models():
     from app.Interest.model import InterestPayout, InterestPeriod, InterestRate  # noqa: F401
     from app.Investors.model import Investor  # noqa: F401
     from app.Jobs.model import Job, PeriodicTask  # noqa: F401
+    from app.Ledger.model import GlAccount  # noqa: F401
     from app.Parties.model import (  # noqa: F401
         Account, Party, PartyAddress, PartyBankAccount, PartyContact, PartyIdentifier, PartyMandate, PartyOrganisation,
         PartyConsent, PartyPepDetails, PartyPerson, PartyRelationship, PartyRole, SanctionsListImport, ScreeningResult,
@@ -102,6 +103,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.Emails.route import emails_v1
     from app.Interest.route import interest_v1
     from app.Investors.route import investors_v1
+    from app.Ledger.route import ledger_v1
     from app.Parties.route import parties_v1
     from app.Reports.route import reports_v1
     from app.Settings.route import settings_v1
@@ -109,7 +111,8 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.Transactions.route import transactions_v1
 
     for bp in (user_v1, investors_v1, transactions_v1, interest_v1, emails_v1, stats_v1,
-               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1, parties_v1):
+               settings_v1, audit_v1, backup_v1, reports_v1, approvals_v1, documents_v1, parties_v1,
+               ledger_v1):
         app.register_blueprint(bp)
     load_handlers()
     from app.Jobs.registry import load_tasks
