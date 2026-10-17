@@ -122,6 +122,21 @@ def subset_of(*choices):
     return check
 
 
+def ratio(places: int = 2):
+    """A fraction from 0 to 1, e.g. a confidence threshold."""
+    def check(value):
+        try:
+            number = Decimal(str(value).strip())
+        except (InvalidOperation, AttributeError):
+            raise ValidationError("must be a number from 0 to 1.")
+        if not Decimal(0) <= number <= Decimal(1):
+            raise ValidationError("must be between 0 and 1.")
+        if number != number.quantize(Decimal(1).scaleb(-places)):
+            raise ValidationError(f"must have at most {places} decimal places.")
+        return f"{number:.{places}f}"
+    return check
+
+
 def keyword_list(max_items: int = 200, max_len: int = 60):
     """Words or phrases matched against statement descriptions (upper-cased, de-duplicated)."""
     def check(value):
@@ -294,6 +309,10 @@ DEFINITIONS = [
     SettingDefinition("ai.statements.lender_keywords", "list", sorted(LENDER_KEYWORDS), keyword_list(), IMMEDIATE,
                       "ai", "Statement descriptions containing any of these words count as repayments to other "
                       "lenders.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),
+    SettingDefinition("ai.review.confidence_threshold", "decimal", "0.85", ratio(2), IMMEDIATE, "ai",
+                      "Values the AI read with less confidence than this are highlighted for the reviewer. Every "
+                      "value still needs an explicit accept or correct.", in_use=True, wa_ref="07 Q-C8",
+                      questionnaire_ref="H2"),
     SettingDefinition("ai.statements.returned_item_keywords", "list", sorted(RETURNED_ITEM_KEYWORDS), keyword_list(),
                       IMMEDIATE, "ai", "Statement descriptions containing any of these words count as bounced or "
                       "returned items.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),

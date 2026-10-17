@@ -86,3 +86,56 @@ def link_document(application_id):
 def enter_crb(application_id):
     row = service.enter_crb(application_id, _body(), current_user())
     return ok(row.to_dict(), "CRB status entered; a second person must confirm it.", 201)
+
+
+# ── Review of an AI reading (AI-07): maker here, checker in the approvals inbox ──
+
+
+@applications_v1.get("/api/v1/extractions/<int:extraction_id>/review")
+@requires("ai.extract.view")
+def review_detail(extraction_id):
+    from app.Applications import review
+    return ok(review.detail(extraction_id, current_user()))
+
+
+@applications_v1.post("/api/v1/extractions/<int:extraction_id>/review/fields/<int:field_id>")
+@requires("ai.review")
+def review_field(extraction_id, field_id):
+    from app.Applications import review
+    review.set_field(extraction_id, field_id, _body(), current_user(), _application_id())
+    return ok(review.detail(extraction_id, current_user()), "Saved.")
+
+
+@applications_v1.post("/api/v1/extractions/<int:extraction_id>/review/transactions/<int:transaction_id>")
+@requires("ai.review")
+def review_transaction(extraction_id, transaction_id):
+    from app.Applications import review
+    review.set_transaction(extraction_id, transaction_id, _body(), current_user(), _application_id())
+    return ok(review.detail(extraction_id, current_user()), "Row corrected.")
+
+
+@applications_v1.post("/api/v1/extractions/<int:extraction_id>/review/unreliable")
+@requires("ai.review")
+def review_unreliable(extraction_id):
+    from app.Applications import review
+    review.mark_unreliable(extraction_id, _body(), current_user(), _application_id())
+    return ok(review.detail(extraction_id, current_user()), "Statement marked not reliable.")
+
+
+@applications_v1.post("/api/v1/extractions/<int:extraction_id>/review/submit")
+@requires("ai.review")
+def review_submit(extraction_id):
+    from app.Applications import review
+    row = review.submit(extraction_id, current_user(), _application_id())
+    return ok({"review_id": row.id, "change_request_id": row.change_request_id},
+              "Submitted: a different person must approve before anything is saved to the client.", 201)
+
+
+def _application_id() -> int | None:
+    value = _body().get("application_id")
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValidationError("application_id must be an application id.")

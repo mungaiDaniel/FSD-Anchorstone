@@ -126,6 +126,7 @@ We're building now with our own defaults and will confirm them with Anchorstone 
 | — (internal) | Email sending: **3 attempts** before a queued email is marked failed | internal | `email.max_attempts` |
 | — (phase 3a) | AI reads documents with **Claude Opus 5.5** (`claude-opus-5-5`) at effort `medium`; 3 tries per call; list prices Opus 5.5 $4 / $20, Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50 per million input / output tokens | H5, H6 (model chosen with the client 2026-10-17; accuracy sign-off still due) | `ai.model_extract` (2 approvers), `ai.effort`, `ai.max_attempts`, `ai.price_table` |
 | — (05 §6.2) | Statement keywords. Other lenders: FULIZA, M-SHWARI, MSHWARI, KCB M-PESA, TALA, BRANCH INTERNATIONAL, ZENKA, OKOLEA, HUSTLER FUND, LOAN REPAYMENT. Bounced / returned: RTD, UNPAID, RETURNED, INSUFF, DISHON, BOUNCED. Whole-word, case-insensitive. | H3 (credit to extend the lender list) | `ai.statements.lender_keywords`, `ai.statements.returned_item_keywords` |
+| — (phase 3b) | AI values read with confidence below **0.85** are highlighted on the review screen; every value still needs an explicit accept or correct | H2 | `ai.review.confidence_threshold` |
 
 ---
 

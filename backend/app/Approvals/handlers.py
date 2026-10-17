@@ -69,3 +69,4 @@ def load_handlers() -> None:
     import app.Parties.handlers  # noqa: F401
     import app.Parties.merge  # noqa: F401
     import app.Applications.handlers  # noqa: F401
+    import app.Applications.review  # noqa: F401
