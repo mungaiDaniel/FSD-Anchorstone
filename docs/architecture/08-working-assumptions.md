@@ -104,7 +104,7 @@ We're building now with our own defaults and will confirm them with Anchorstone 
 | Q-IT2 | Removing staff accounts | Disable only, never delete | 07 | I7 | ⛔ structural (code change: remove the delete endpoint) |
 | Q-IT3 | Backups | Managed PITR + daily OneDrive copy (FSD NTF-07). Quarterly restore drill. | 07 + FSD NTF-07 | I2 | env config (`DB_BACKUP_*`) |
 | Q-IT4 | Passbook | None. PDF statements. | 07 | I12 | ⛔ structural |
-| Q-IT5 | Password policy | Minimum length **10** (satisfies the FSD's "at least 8"; see §2.1 #5). **No reuse of any previous password.** **Change every 90 days.** Lock after **5 failed attempts in 15 minutes** (already in place). Idle logout 30 min. Single session optional. | **FSD SEC-02** + 07 | I6 | `security.password_min_length` (floor 8), `security.password_history` (0 = all), `security.password_max_age_days`, `security.login_max_failures`, `security.login_window_minutes`, `security.login_lock_minutes`, `security.idle_timeout_minutes`, `security.single_session` |
+| Q-IT5 | Password policy | Minimum length **10** (satisfies the FSD's "at least 8"; see §2.1 #5). **No reuse of any previous password.** **Change every 90 days.** Lock after **5 failed attempts in 15 minutes** (already in place). Idle logout 30 min. Single session optional. | **FSD SEC-02** + 07 | I6 | `security.password_min_length` (floor 8), `security.password_history` (0 = all), `security.password_max_age_days`, `security.login_max_failures`, `security.login_window_minutes`, `security.login_lock_minutes`, `security.login_ip_max_failures` (20 failures from one IP in the window), `security.idle_timeout_minutes`, `security.single_session` |
 | Q-IT6 | BI tool | Read-only replica + Power BI / Metabase | 07 | I8 | ⛔ structural |
 | Q-IT7 | SMS provider | Africa's Talking behind our adapter | 07 + FSD NTF-04 | I4 | env config (provider credentials) + `sms.sender_id` |
 | Q-IT8 | Lending book source | Full extract at an agreed cutoff, migration audit, rehearsals during the lending build (FSD §19) | 07 = FSD §19 | I5 | ⛔ structural |
@@ -118,11 +118,12 @@ We're building now with our own defaults and will confirm them with Anchorstone 
 | WA | Value in use | Confirmed by | Setting |
 |---|---|---|---|
 | WA-03 | Withholding tax on investor interest 0%, hidden on statements | B5 | `investments.wht_rate_percent` (today the constant `DEFAULT_TAX_RATE_PERCENT`) |
-| WA-06 | Penalty interest on overdue amounts from **7 days** past due. Rate per product (none set yet). | E4 | product: `penalty_grace_days` (default 7), `penalty_rate` |
+| WA-06 | Penalty interest on overdue amounts from **7 days** past due. Rate per product (none set yet). | E4 | product: `penalty_grace_days` (global default `lending.penalty_grace_days` = 7, product override), `penalty_rate` |
 | WA-10 | Starting pre-selection rules: time in business ≥ 12 months (else Not qualified); average monthly inflows (6 months) ≥ 3 × instalment (else Needs review); CRB: listed → Not qualified, cleared → Needs review; forced-sale cover ≥ 125% (else Needs review); age 18–70 at maturity (else Not qualified); name/ID consistency (else Needs review); CR12 directors match (else Needs review); bounced items ≤ 2 in 6 months (else Needs review); other lenders' repayments < 50% of inflows (else Needs review) | H3, H4 | screening rule set v1 (structured, §3.5) |
 | — (FSD NTF-01) | Repayment reminders **3 days before** and on the due date; missed payment, receipt, disbursement, insurance expiry, statements | internal | `notifications.reminder_days_before` (default [3, 0]) |
 | — (FSD REP-02) | Allocation order: penalty → interest → principal. Disposal proceeds: principal → interest → penalty. | internal | product: `allocation_order`, `disposal_allocation_order` |
 | — (FSD SEC-04) | Restrict sign-in times per user; block users on leave | internal | `access_windows` (structured) |
+| — (internal) | Email sending: **3 attempts** before a queued email is marked failed | internal | `email.max_attempts` |
 
 ---
 

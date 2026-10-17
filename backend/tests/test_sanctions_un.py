@@ -276,3 +276,37 @@ def test_cli_imports_a_local_file(app, tmp_path):
     path.write_bytes(b"<nope")
     out = app.test_cli_runner().invoke(args=["import-un-sanctions", "--file", str(path)])
     assert out.exit_code != 0 and "valid XML" in out.output
+
+
+# ── Accents ──
+
+
+def test_names_match_with_or_without_accents(staff, admin1, admin2):
+    from app.Parties.normalise import normalise_name
+    assert normalise_name("Al-Qaïda Organisation") == normalise_name("al qaida organisation") == "AL ORGANISATION QAIDA"
+    assert normalise_name("José Ñúñez") == "JOSE NUNEZ"
+    enable_un_screening(admin1, admin2)
+    run(variant(replace=[("<FIRST_NAME>SAMIRA</FIRST_NAME>", "<FIRST_NAME>SAMÍRA</FIRST_NAME>")]))
+    client = create(staff, person(first="Samira", last="Exempla"))["data"]
+    [hit] = ScreeningResult.query.filter_by(party_id=client["id"], review_status="pending").one().matches
+    assert hit["name"] == "SAMÍRA EXEMPLA" and hit["matched_on"] == ["name"]
+
+
+def test_migration_recomputes_stored_names_with_accents_folded(app):
+    from flask_migrate import downgrade, upgrade
+
+    def alembic(fn, revision):
+        db.session.commit()
+        db.session.remove()
+        fn(revision=revision)
+
+    alembic(downgrade, "c5d6e7f8a9b0")
+    try:
+        db.session.execute(text(
+            "INSERT INTO watchlist_entries (list, full_name, name_normalised, aliases, reason, status, added_by,"
+            " added_at) VALUES ('internal_blacklist', 'Zoë Kamau', 'KAMAU ZO', "
+            "CAST('[{\"name\": \"Zoë K\", \"name_normalised\": \"K ZO\"}]' AS jsonb), 'r', 'active', 'x', now())"))
+    finally:
+        alembic(upgrade, "head")
+    entry = WatchlistEntry.query.one()
+    assert entry.name_normalised == "KAMAU ZOE" and entry.aliases[0]["name_normalised"] == "K ZOE"
