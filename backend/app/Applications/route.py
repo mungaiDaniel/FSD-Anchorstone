@@ -139,3 +139,10 @@ def _application_id() -> int | None:
         return int(value)
     except (TypeError, ValueError):
         raise ValidationError("application_id must be an application id.")
+
+
+@applications_v1.get("/api/v1/applications/<int:application_id>/checks")
+@requires("application.view")
+def application_checks(application_id):
+    from app.Applications import checks
+    return ok(checks.run(application_id))
