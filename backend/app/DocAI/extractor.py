@@ -213,7 +213,7 @@ def check_identity(ex: Extraction, detected: str, readable: bool, unreadable_rea
 def _a(text: str) -> str:
     if text.startswith("a "):
         return text
-    return ("an " if text[:1].lower() in "aeiou" else "a ") + text
+    return ("an " if text[:1].lower() in "aeiou" or text.startswith("M-") else "a ") + text
 
 
 def store_field(ex: Extraction, path: str, kind: str, entry: dict, page_count: int | None,
