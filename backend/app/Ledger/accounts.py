@@ -36,7 +36,8 @@ def list_accounts(include_inactive: bool = True) -> list[GlAccount]:
 
 
 def has_postings(account: GlAccount) -> bool:
-    return False  # journals arrive with the next migration
+    from app.Ledger.model import JournalLine
+    return db.session.query(JournalLine.id).filter(JournalLine.gl_account_id == account.id).first() is not None
 
 
 def children(account: GlAccount) -> list[GlAccount]:

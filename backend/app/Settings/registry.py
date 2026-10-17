@@ -33,7 +33,7 @@ class SettingDefinition:
     default: Any                   # JSON-compatible (decimals as strings)
     validator: Callable[[Any], Any]
     binding: str
-    category: str                  # security / investments / operations / lending / compliance / documents / ai
+    category: str                  # security / investments / finance / operations / lending / compliance / documents / ai
     description: str
     scopes: tuple[str, ...] = ("global",)
     approvals_required: int = 1
@@ -163,6 +163,11 @@ DEFINITIONS = [
                       "Withholding tax on investor interest (%), applied to a month by the value in force on its "
                       "last day. 0% and hidden until compliance confirms the treatment.", in_use=True,
                       wa_ref="WA-03", questionnaire_ref="B5"),
+    # ── Finance ──
+    SettingDefinition("gl.financial_year_end_month", "int", 12, int_between(1, 12), AT_BOOKING, "finance",
+                      "Month the financial year ends in (on its last day). Copied onto each GL period when the "
+                      "period is opened, so later changes affect only periods not yet opened.", in_use=True,
+                      wa_ref="FSD FIN-05", questionnaire_ref="G4"),
     # ── Operations ──
     SettingDefinition("email.max_attempts", "int", 3, int_between(1, 10), IMMEDIATE, "operations",
                       "Send attempts before a queued email is marked failed.", in_use=True, wa_ref="internal"),

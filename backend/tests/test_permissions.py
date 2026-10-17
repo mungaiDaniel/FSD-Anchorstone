@@ -107,6 +107,7 @@ NEW_SINCE_PHASE_1 = {
     ("GET", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist"), ("POST", "/api/v1/watchlist/<int:entry_id>/remove"),
     # Phase 4: general ledger
     ("GET", "/api/v1/gl/accounts"), ("GET", "/api/v1/gl/accounts/<int:account_id>"),
+    ("GET", "/api/v1/gl/periods"), ("GET", "/api/v1/gl/journals/<int:entry_id>"),
 }
 
 

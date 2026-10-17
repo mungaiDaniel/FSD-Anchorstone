@@ -36,6 +36,8 @@ _DATED_MODULES = (
     "app.Settings.business",
     "app.Settings.handlers",
     "app.Parties.service",
+    "app.Ledger.journals",
+    "app.Ledger.handlers",
 )
 
 # Tables whose rows are seeded by migrations (branches, roles, policies, settingsâ€¦).

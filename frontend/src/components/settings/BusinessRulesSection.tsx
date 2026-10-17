@@ -15,6 +15,7 @@ type Filter = "all" | "working_assumption";
 const CATEGORY_LABELS: Record<string, string> = {
   security: "Security",
   investments: "Investments",
+  finance: "Finance",
   operations: "Operations",
   lending: "Lending",
   compliance: "Compliance",
