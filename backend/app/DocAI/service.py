@@ -153,9 +153,12 @@ def detail(extraction_id: int, actor: User) -> dict:
             .order_by(StatementTransaction.page_number, StatementTransaction.row_no).all())
     metrics = StatementMetric.query.filter_by(extraction_id=row.id).order_by(StatementMetric.id).all()
     inputs: dict[int, list[int]] = {}
+    keywords: dict[int, dict[str, str]] = {}
     if metrics:
         for link in StatementMetricInput.query.filter(StatementMetricInput.metric_id.in_([m.id for m in metrics])):
             inputs.setdefault(link.metric_id, []).append(link.transaction_id)
+            if link.matched_keyword:
+                keywords.setdefault(link.metric_id, {})[str(link.transaction_id)] = link.matched_keyword
     calls = (ExtractionCall.query.filter_by(extraction_id=row.id)
              .order_by(ExtractionCall.started_at, ExtractionCall.page_number).all())
     _log_view(row, actor)
@@ -163,5 +166,5 @@ def detail(extraction_id: int, actor: User) -> dict:
     return {**row.to_dict(), "label": types.label(row.declared_type),
             "fields": [f.to_dict() for f in fields], "pages": [p.to_dict() for p in pages],
             "transactions": [t.to_dict() for t in txns],
-            "metrics": [m.to_dict(sorted(inputs.get(m.id, []))) for m in metrics],
+            "metrics": [m.to_dict(sorted(inputs.get(m.id, [])), keywords.get(m.id)) for m in metrics],
             "calls": [c.to_dict() for c in calls]}

@@ -192,6 +192,23 @@ AI_PRICES = {  # USD per million tokens, Anthropic list prices October 2026
 }
 LENDER_KEYWORDS = ("FULIZA", "M-SHWARI", "MSHWARI", "KCB M-PESA", "TALA", "BRANCH INTERNATIONAL", "ZENKA", "OKOLEA",
                    "HUSTLER FUND", "LOAN REPAYMENT")
+# Version 2 of ai.statements.lender_keywords (migration e5f6a7b8c9db), TO BE EXTENDED BY CREDIT. Loan-specific
+# phrases only: a bare "M-SHWARI" would also catch savings deposits, "BRANCH" a bank branch.
+KENYAN_LENDER_KEYWORDS = (
+    # Banks' loan narrations on bank statements
+    "LOAN REPAYMENT", "LOAN REPAY", "LN REPAYMENT", "LOAN RPYMT", "LOAN INSTALMENT", "LOAN INSTALLMENT",
+    "LOAN RECOVERY", "LOAN DEDUCTION", "OVERDRAFT REPAYMENT", "OD LOAN REPAYMENT", "KCB LOAN", "EQUITY LOAN",
+    "CO-OP LOAN", "COOP LOAN", "NCBA LOAN", "ABSA LOAN", "STANBIC LOAN", "FAMILY BANK LOAN", "DTB LOAN",
+    "I&M LOAN",
+    # Mobile-loan products (M-Pesa and bank apps)
+    "FULIZA", "M-SHWARI LOAN", "MSHWARI LOAN", "KCB M-PESA LOAN", "KCB MPESA LOAN", "EAZZY LOAN", "EQUITEL LOAN",
+    "MCO-OP CASH", "TIMIZA", "PESAPAP LOAN", "HUSTLER FUND", "STAWI",
+    # Digital lenders and asset financiers
+    "TALA", "BRANCH INTERNATIONAL", "BRANCH MICROFINANCE", "BRANCH LOAN", "ZENKA", "OKOLEA", "ZASH", "IPESA",
+    "M-KOPA", "WATU CREDIT", "MOGO", "PLATINUM CREDIT",
+    # Microfinance banks
+    "KWFT", "FAULU", "MUSONI", "SMEP", "LETSHEGO",
+)
 RETURNED_ITEM_KEYWORDS = ("RTD", "UNPAID", "RETURNED", "INSUFF", "DISHON", "BOUNCED")
 
 def _rule_set(value):
@@ -350,8 +367,10 @@ DEFINITIONS = [
     SettingDefinition("ai.breaker.window_minutes", "int", 10, int_between(1, 1440), IMMEDIATE, "ai",
                       "The window (minutes) for counting failed calls.", in_use=True, wa_ref="05 §11"),
     SettingDefinition("ai.statements.lender_keywords", "list", sorted(LENDER_KEYWORDS), keyword_list(), IMMEDIATE,
-                      "ai", "Statement descriptions containing any of these words count as repayments to other "
-                      "lenders.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),
+                      "ai", "Statement descriptions containing any of these words or phrases count as repayments to "
+                      "other lenders (debits only; whole words, any case; the matching keyword is recorded). A "
+                      "starting list of Kenyan banks' loan narrations, mobile-loan products and digital lenders, "
+                      "TO BE EXTENDED BY CREDIT.", in_use=True, wa_ref="05 §6.2", questionnaire_ref="H3"),
     SettingDefinition("ai.review.confidence_threshold", "decimal", "0.85", ratio(2), IMMEDIATE, "ai",
                       "Values the AI read with less confidence than this are highlighted for the reviewer. Every "
                       "value still needs an explicit accept or correct.", in_use=True, wa_ref="07 Q-C8",

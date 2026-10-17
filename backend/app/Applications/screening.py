@@ -115,19 +115,21 @@ def _statements(app: LoanApplication, sources) -> dict:
     in_window = [r for r in rows if r.txn_date and (r.txn_date.year, r.txn_date.month) in set(window)]
     credits = [r for r in in_window if r.credit and r.credit > 0]
     inflow = sum((r.credit for r in credits), Decimal("0"))
-    returned = [r for r in in_window if statement_metrics.matches(
-        r.description, business.get("ai.statements.returned_item_keywords"))]
-    lenders = [r for r in in_window if r.debit and r.debit > 0 and statement_metrics.matches(
-        r.description, business.get("ai.statements.lender_keywords"))]
+    returned, returned_words = statement_metrics.keyword_rows(
+        in_window, business.get("ai.statements.returned_item_keywords"), kind="returned-item")
+    lenders, lender_words = statement_metrics.keyword_rows(
+        in_window, business.get("ai.statements.lender_keywords"), debits_only=True, kind="lender")
     lender_total = sum((r.debit for r in lenders), Decimal("0"))
     window_text = f"{window[0][0]}-{window[0][1]:02d} to {window[-1][0]}-{window[-1][1]:02d}"
     out = {"avg_monthly_inflow_6m": _have(str(round_money(inflow / WINDOW_MONTHS)), used, window=window_text,
                                           transaction_ids=[r.id for r in credits]),
            "returned_items_6m": _have(len(returned), used, window=window_text,
-                                      transaction_ids=[r.id for r in returned])}
+                                      transaction_ids=[r.id for r in returned],
+                                      matched_keywords={str(r.id): w for r, w in zip(returned, returned_words)})}
     if inflow > 0:
         out["lender_repayment_share_6m"] = _have(str((lender_total / inflow).quantize(RATIO, rounding=ROUND_HALF_UP)),
-                                                 used, window=window_text, transaction_ids=[r.id for r in lenders])
+                                                 used, window=window_text, transaction_ids=[r.id for r in lenders],
+                                                 matched_keywords={str(r.id): w for r, w in zip(lenders, lender_words)})
     else:
         out["lender_repayment_share_6m"] = _missing("no inflows in the last 6 months", used)
     return out

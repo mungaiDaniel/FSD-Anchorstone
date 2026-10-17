@@ -277,7 +277,7 @@ class StatementMetric(Base, db.Model):
     period_to = Column(Date, nullable=True)
     definition = Column(Text, nullable=False)  # how it was computed, in words (with the keywords used)
 
-    def to_dict(self, input_ids: list[int] | None = None) -> dict:
+    def to_dict(self, input_ids: list[int] | None = None, keywords: dict | None = None) -> dict:
         value = self.value
         if self.unit == "KES":
             value = as_str(value)
@@ -287,7 +287,8 @@ class StatementMetric(Base, db.Model):
             value = str(value)
         return {"metric": self.metric, "value": value, "unit": self.unit, "period_from": iso(self.period_from),
                 "period_to": iso(self.period_to), "definition": self.definition,
-                "transaction_ids": input_ids if input_ids is not None else []}
+                "transaction_ids": input_ids if input_ids is not None else [],
+                "matched_keywords": keywords or {}}
 
 
 class StatementMetricInput(db.Model):
@@ -296,6 +297,7 @@ class StatementMetricInput(db.Model):
     metric_id = Column(Integer, ForeignKey("ai_statement_metrics.id", ondelete="RESTRICT"), primary_key=True)
     transaction_id = Column(Integer, ForeignKey("ai_statement_transactions.id", ondelete="RESTRICT"),
                             primary_key=True)
+    matched_keyword = Column(String(60), nullable=True)  # for keyword metrics: which keyword matched
 
 
 REFUSAL_KINDS = ("disabled", "paused", "pricing", "monthly", "per_application", "per_run")

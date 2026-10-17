@@ -207,3 +207,55 @@ def test_rows_that_cannot_be_read_as_data_flag_the_page(ai, staff, users, bad, p
     ex = read(users, p, doc, ai, response("bank_statement_page1"), response("bank_statement_page2"),
               response("bank_statement_page3", answer=answer))
     assert ex.status == "needs_review" and problem in pages(ex)[3].reason
+
+
+# ── Lender keywords (version 2: Kenyan lenders, to be extended by credit) ──
+
+
+def test_ai_05_kenyan_lender_keyword_list_is_seeded_as_a_new_version():
+    from app.Settings.model import SettingVersion
+    from app.Settings.registry import KENYAN_LENDER_KEYWORDS, REGISTRY, keyword_list
+
+    v2 = SettingVersion.query.filter_by(key="ai.statements.lender_keywords", version_no=2).one()
+    assert v2.value == keyword_list()(list(KENYAN_LENDER_KEYWORDS))
+    assert {"FULIZA", "M-SHWARI LOAN", "KCB M-PESA LOAN", "HUSTLER FUND", "TALA", "BRANCH INTERNATIONAL",
+            "ZENKA", "LOAN REPAYMENT"} <= set(v2.value)
+    assert "M-SHWARI" not in v2.value and "BRANCH" not in v2.value  # would catch savings and bank branches
+    assert "TO BE EXTENDED BY CREDIT" in v2.evidence
+    assert "TO BE EXTENDED BY CREDIT" in REGISTRY["ai.statements.lender_keywords"].description
+
+
+@pytest.mark.parametrize("description, expected", [
+    ("Fuliza M-Pesa Repayment", "FULIZA"),
+    ("fuliza m-pesa repayment", "FULIZA"),                       # any case
+    ("M-Shwari Loan Repayment", "M-SHWARI LOAN"),
+    ("M-Shwari Deposit", None),                                  # savings, not a loan
+    ("kcb m-pesa loan repayment", "KCB M-PESA LOAN"),             # earliest, then longest, phrase is recorded
+    ("Pay Bill to 849000 Tala", "TALA"),
+    ("BRANCH WITHDRAWAL KAREN", None),                           # a bank branch, not Branch the lender
+    ("HUSTLER FUND REPAYMENT", "HUSTLER FUND"),
+    ("CAPITAL GAINS", None),
+])
+def test_ai_05_lender_keywords_match_whole_words_in_any_case(description, expected):
+    from app.Settings.registry import KENYAN_LENDER_KEYWORDS
+    assert metrics.matched_keyword(description, KENYAN_LENDER_KEYWORDS) == expected
+
+
+def test_ai_05_the_matched_keyword_is_recorded_and_logged(ai, staff, users, admin1, caplog, monkeypatch):
+    import logging
+    # Alembic's fileConfig (run when the test DB is migrated) disables loggers that already exist.
+    monkeypatch.setattr(logging.getLogger("app.DocAI.metrics"), "disabled", False)
+    caplog.set_level(logging.INFO, logger="app.DocAI.metrics")
+    p, doc = client_with(staff, "bank_statement", BANK)
+    ex = read(users, p, doc, ai, response("bank_statement_page1"), response("bank_statement_page2"),
+              response("bank_statement_page3"))
+    body = admin1.get(f"/api/v1/extractions/{ex.id}").get_json()["data"]
+    lenders = next(m for m in body["metrics"] if m["metric"] == "lender_repayments_total")
+    by_description = {next(t["description"] for t in body["transactions"] if str(t["id"]) == tid): word
+                      for tid, word in lenders["matched_keywords"].items()}
+    assert by_description == {"FULIZA REPAYMENT": "FULIZA", "TALA LOAN REPAYMENT": "TALA",
+                              "FULIZA M-PESA REPAYMENT": "FULIZA"}
+    returned = next(m for m in body["metrics"] if m["metric"] == "returned_items_count")
+    assert list(returned["matched_keywords"].values()) == ["RTD"]  # "CHQ 000123 RTD INSUFF FUNDS": the first match
+    assert "lender keyword 'FULIZA' matched transaction" in caplog.text
+    assert "SAMPLE" not in caplog.text  # only the keyword and transaction id are logged, not the narration
