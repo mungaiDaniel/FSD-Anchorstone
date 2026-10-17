@@ -192,3 +192,31 @@ def rule_set():
                "metrics": [{"name": k, "kind": v[0], "description": v[1]} for k, v in METRICS.items()],
                "comparisons": list(COMPARISONS), "outcomes": list(FAIL_OUTCOMES), "products": list(PRODUCT_CODES),
                "protected_attributes": sorted(PROTECTED)})
+
+
+# ── Oversight (AI-10, AI-12, AI-13) ──
+
+
+@applications_v1.get("/api/v1/applications/<int:application_id>/log")
+@requires("application.view", "ai.extract.view")
+def decision_log(application_id):
+    from app.Applications import reports
+    return ok(reports.decision_log(application_id, current_user()))
+
+
+@applications_v1.get("/api/v1/ai/usage")
+@requires("ai.extract.view")
+def ai_usage():
+    from app.Applications import reports
+    try:
+        months = int(request.args.get("months") or 12)
+    except ValueError:
+        raise ValidationError("months must be a whole number.")
+    return ok(reports.usage(months))
+
+
+@applications_v1.get("/api/v1/ai/accuracy")
+@requires("ai.extract.view")
+def ai_accuracy():
+    from app.Applications import reports
+    return ok(reports.accuracy())

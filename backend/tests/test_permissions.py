@@ -124,6 +124,8 @@ NEW_SINCE_PHASE_1 = {
     ("POST", "/api/v1/applications/<int:application_id>/screen"),
     ("GET", "/api/v1/applications/<int:application_id>/runs"),
     ("POST", "/api/v1/applications/<int:application_id>/decision"), ("GET", "/api/v1/screening/rule-set"),
+    ("GET", "/api/v1/applications/<int:application_id>/log"), ("GET", "/api/v1/ai/usage"),
+    ("GET", "/api/v1/ai/accuracy"),
 }
 
 
